@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import { send } from "../api.js";
+import { Header } from "./Header.js";
+import { t } from "../../shared/i18n.js";
 import {
   busy,
   errorMessage,
@@ -15,7 +17,6 @@ export function SetupScreen() {
   const [confirm, setConfirm] = useState("");
   const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Debounce live fingerprint preview so we don't slam Argon2id on every keystroke.
   useEffect(() => {
     if (previewTimer.current !== null) clearTimeout(previewTimer.current);
     if (master.length < MIN_LENGTH) {
@@ -42,11 +43,11 @@ export function SetupScreen() {
       event.preventDefault();
       errorMessage.value = null;
       if (master.length < MIN_LENGTH) {
-        errorMessage.value = `master password must be at least ${MIN_LENGTH} characters`;
+        errorMessage.value = t("setup_min_length_error", String(MIN_LENGTH));
         return;
       }
       if (master !== confirm) {
-        errorMessage.value = "passwords do not match";
+        errorMessage.value = t("setup_mismatch_error");
         return;
       }
       busy.value = true;
@@ -64,16 +65,15 @@ export function SetupScreen() {
   );
 
   return (
-    <form class="screen" onSubmit={submit}>
-      <h1>Welcome</h1>
-      <p class="muted">
-        ItsMyPassword does not store your passwords — it recomputes them from your master password
-        each time. Choose a master you can remember. We cannot recover it.
-      </p>
+    <form class="popup" onSubmit={submit}>
+      <Header subtitle={t("setup_welcome")} />
+
+      <p class="popup__intro">{t("setup_intro")}</p>
 
       <label class="field">
-        <span>Master password</span>
+        <span class="field__label">{t("setup_master_label")}</span>
         <input
+          class="input"
           type="password"
           value={master}
           minLength={MIN_LENGTH}
@@ -84,8 +84,9 @@ export function SetupScreen() {
       </label>
 
       <label class="field">
-        <span>Confirm</span>
+        <span class="field__label">{t("setup_confirm_label")}</span>
         <input
+          class="input"
           type="password"
           value={confirm}
           autocomplete="new-password"
@@ -94,19 +95,20 @@ export function SetupScreen() {
       </label>
 
       {livePreview.value !== null ? (
-        <div class="fingerprint" aria-live="polite">
-          <span class="muted">Your fingerprint:</span>{" "}
-          <span class="fingerprint__value">{livePreview.value}</span>
-          <p class="muted small">
-            Memorise these emojis — you should see the same three every time you unlock.
-          </p>
+        <div class="fp-surface fade-in" aria-live="polite">
+          <span class="fingerprint">{livePreview.value}</span>
+          <span class="field__hint">{t("setup_fingerprint_hint")}</span>
         </div>
       ) : null}
 
-      {errorMessage.value !== null ? <div class="error">{errorMessage.value}</div> : null}
+      {errorMessage.value !== null ? (
+        <div class="field__error" role="alert">
+          {errorMessage.value}
+        </div>
+      ) : null}
 
-      <button type="submit" disabled={busy.value}>
-        {busy.value ? "Setting up…" : "Create"}
+      <button type="submit" class="btn" disabled={busy.value}>
+        {busy.value ? t("setup_creating") : t("setup_create_button")}
       </button>
     </form>
   );
