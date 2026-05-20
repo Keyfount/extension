@@ -20,14 +20,14 @@ Same inputs ⇒ same password, on any device, with no synchronisation.
 
 ## 2. Threat model
 
-| Asset | Threat | Mitigation |
-|---|---|---|
-| Master password | Phishing, keylogger, shoulder-surf | Outside our scope; we never transmit it; UX hides it by default |
-| Master password (at rest, PIN mode) | Local disk compromise | Encrypted with an Argon2id-derived key from a user PIN; clear warning shown when opt-in |
-| Per-site preferences | Local disk compromise | Not secret — leaking them does not leak passwords |
-| Generated password | Brute-force from a leaked site password | High-cost KDF (Argon2id `m=64 MiB, t=3, p=1`) |
-| Code supply chain | Malicious dependency | Minimal deps, lockfile, Dependabot, manual review for every PR |
-| Service worker | Long-running attacker reading memory | Master cleared on lock timeout / browser close; never written to disk in default mode |
+| Asset                               | Threat                                  | Mitigation                                                                              |
+| ----------------------------------- | --------------------------------------- | --------------------------------------------------------------------------------------- |
+| Master password                     | Phishing, keylogger, shoulder-surf      | Outside our scope; we never transmit it; UX hides it by default                         |
+| Master password (at rest, PIN mode) | Local disk compromise                   | Encrypted with an Argon2id-derived key from a user PIN; clear warning shown when opt-in |
+| Per-site preferences                | Local disk compromise                   | Not secret — leaking them does not leak passwords                                       |
+| Generated password                  | Brute-force from a leaked site password | High-cost KDF (Argon2id `m=64 MiB, t=3, p=1`)                                           |
+| Code supply chain                   | Malicious dependency                    | Minimal deps, lockfile, Dependabot, manual review for every PR                          |
+| Service worker                      | Long-running attacker reading memory    | Master cleared on lock timeout / browser close; never written to disk in default mode   |
 
 Out of scope: malware running with the same OS user privileges, browser zero-days, hardware attacks.
 
@@ -39,13 +39,13 @@ The algorithm uses a standard, memory-hard key-derivation function followed by a
 
 ### 3.1 Inputs
 
-| Field | Type | Origin | Normalisation |
-|---|---|---|---|
-| `master` | UTF-8 string | User memory | None — used verbatim |
-| `domain` | UTF-8 string | Active tab URL | Public Suffix List → registrable domain, lowercase |
-| `email` | UTF-8 string | Page form, or popup input | `.trim().toLowerCase()` |
-| `counter` | integer ≥ 1 | Per-site preference (default 1) | Rendered as lowercase hex, no padding |
-| `profile` | object | Per-site preference | See § 3.4 |
+| Field     | Type         | Origin                          | Normalisation                                      |
+| --------- | ------------ | ------------------------------- | -------------------------------------------------- |
+| `master`  | UTF-8 string | User memory                     | None — used verbatim                               |
+| `domain`  | UTF-8 string | Active tab URL                  | Public Suffix List → registrable domain, lowercase |
+| `email`   | UTF-8 string | Page form, or popup input       | `.trim().toLowerCase()`                            |
+| `counter` | integer ≥ 1  | Per-site preference (default 1) | Rendered as lowercase hex, no padding              |
+| `profile` | object       | Per-site preference             | See § 3.4                                          |
 
 ### 3.2 Key derivation
 
@@ -71,7 +71,7 @@ A deterministic base-conversion from the big-integer entropy into a fixed-length
    - lowercase: `abcdefghijklmnopqrstuvwxyz`
    - uppercase: `ABCDEFGHIJKLMNOPQRSTUVWXYZ`
    - digits: `0123456789`
-   - symbols: `` !"#$%&'()*+,-./:;<=>?@[\]^_`{|}~ `` (32 chars)
+   - symbols: ``!"#$%&'()*+,-./:;<=>?@[\]^_`{|}~`` (32 chars)
 2. Concatenate enabled pools into `full_set`.
 3. **Bulk fill:** generate `length − rules_enabled` characters by repeated `divmod(entropy, len(full_set))`, appending `full_set[remainder]`.
 4. **One per rule:** for each enabled class, consume one more character from that class only.
@@ -99,18 +99,18 @@ Example output: `Guava4_-Apple4;-Camera0]-House7>-River6+-Balloon1{`
 type Profile = {
   mode: "random" | "memorable";
   // random mode
-  length: number;        // 5..35, default 16
-  lower: boolean;        // default true
-  upper: boolean;        // default true
-  digits: boolean;       // default true
-  symbols: boolean;      // default true
+  length: number; // 5..35, default 16
+  lower: boolean; // default true
+  upper: boolean; // default true
+  digits: boolean; // default true
+  symbols: boolean; // default true
   // memorable mode
-  wordCount: number;     // 5..8, default 6
-  separator: "-" | "." | "_";  // default "-"
-  capitalise: boolean;   // default true
-  suffix: boolean;       // default true
+  wordCount: number; // 5..8, default 6
+  separator: "-" | "." | "_"; // default "-"
+  capitalise: boolean; // default true
+  suffix: boolean; // default true
   // both
-  counter: number;       // ≥ 1, default 1
+  counter: number; // ≥ 1, default 1
 };
 ```
 
@@ -150,6 +150,7 @@ Rendered as a triplet of emojis (e.g. 🐢 🌲 🔑) for visual recognition —
 The **only** context that handles the master password and runs the KDF.
 
 Responsibilities:
+
 - Crypto module (`crypto/argon2.ts`, `crypto/render.ts`)
 - Session state — unlocked master in `chrome.storage.session` with `setAccessLevel('TRUSTED_CONTEXTS')` (content scripts cannot read it).
 - Auto-lock timer via `chrome.alarms` (default 15 min idle).
@@ -165,6 +166,7 @@ Responsibilities:
 Injected on `all_frames: true` via `activeTab` + dynamic `chrome.scripting.executeScript` (no broad `host_permissions`).
 
 Responsibilities:
+
 - Detect `input[type=password]` (incl. shadow DOM via open-shadow traversal, dynamic mounts via `MutationObserver`).
 - Identify nearest username/email field via heuristics (see § 7).
 - On password-field focus, render a floating UI anchored to the field (Shadow-DOM-isolated to avoid leaking styles).
@@ -183,6 +185,7 @@ Default surface when the user clicks the toolbar icon.
 ### 4.4 Options page — `src/options/`
 
 Long-form configuration:
+
 - Default profile.
 - Auto-lock timeout.
 - **PIN mode** toggle, with explicit warning before enabling.
@@ -229,6 +232,7 @@ Long-form configuration:
 ### 5.3 PIN mode (opt-in, with warning)
 
 When enabled:
+
 1. User picks a 4-6 digit PIN.
 2. We derive a key: `key = PBKDF2-SHA256(pin, salt=randomBytes(16), iterations=600_000, length=32)`.
 3. We encrypt the master: `ciphertext = AES-GCM(key, iv=randomBytes(12), master)`.
@@ -282,18 +286,18 @@ Heuristics (implemented from scratch, no external dependency):
 
 ## 8. Stack
 
-| Concern | Choice | Rationale |
-|---|---|---|
-| Language | TypeScript strict | Type safety on crypto-adjacent code |
-| Build | **WXT** (`wxt.dev`) | MV3-first, HMR, cross-browser, actively maintained |
-| UI runtime | **Preact 10 + `@preact/signals`** | ~4 KB gz, audit-friendly, React-like DX |
-| Styling | Plain CSS + CSS variables | No runtime; theme via `prefers-color-scheme` |
-| Crypto | **WebCrypto** for AES/PBKDF2 + **`hash-wasm`** for Argon2id | Native where possible; one tiny WASM dep |
-| Wordlist | EFF Large Wordlist (bundled) | 12.92 bits/word, public domain |
-| Test runner | **Vitest** + **happy-dom** | Fast, good WebCrypto support |
-| E2E | **Playwright** | First-class MV3 extension testing |
-| Lint/format | ESLint + Prettier | Standard |
-| CI | GitHub Actions | See § 9 |
+| Concern     | Choice                                                      | Rationale                                          |
+| ----------- | ----------------------------------------------------------- | -------------------------------------------------- |
+| Language    | TypeScript strict                                           | Type safety on crypto-adjacent code                |
+| Build       | **WXT** (`wxt.dev`)                                         | MV3-first, HMR, cross-browser, actively maintained |
+| UI runtime  | **Preact 10 + `@preact/signals`**                           | ~4 KB gz, audit-friendly, React-like DX            |
+| Styling     | Plain CSS + CSS variables                                   | No runtime; theme via `prefers-color-scheme`       |
+| Crypto      | **WebCrypto** for AES/PBKDF2 + **`hash-wasm`** for Argon2id | Native where possible; one tiny WASM dep           |
+| Wordlist    | EFF Large Wordlist (bundled)                                | 12.92 bits/word, public domain                     |
+| Test runner | **Vitest** + **happy-dom**                                  | Fast, good WebCrypto support                       |
+| E2E         | **Playwright**                                              | First-class MV3 extension testing                  |
+| Lint/format | ESLint + Prettier                                           | Standard                                           |
+| CI          | GitHub Actions                                              | See § 9                                            |
 
 **Forbidden dependencies:** any network client, telemetry SDK, analytics, error reporter, runtime evaluator. The bundle must be inspectable end-to-end.
 
@@ -303,13 +307,13 @@ Heuristics (implemented from scratch, no external dependency):
 
 Workflow `.github/workflows/ci.yml`:
 
-| Job | Trigger | Steps |
-|---|---|---|
-| `lint` | PR, push | ESLint, Prettier check, `web-ext lint` |
-| `test` | PR, push | Vitest with coverage; golden-vector regression tests on the crypto module |
-| `build` | PR, push | `wxt build` Chrome and Firefox |
-| `e2e` | PR (Chromium only) | Playwright against built extension |
-| `release` | Tag `v*` | Build all targets, attach zip artifacts to GitHub Release. Chrome Web Store upload **manual** (password manager — never auto-publish) |
+| Job       | Trigger            | Steps                                                                                                                                 |
+| --------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `lint`    | PR, push           | ESLint, Prettier check, `web-ext lint`                                                                                                |
+| `test`    | PR, push           | Vitest with coverage; golden-vector regression tests on the crypto module                                                             |
+| `build`   | PR, push           | `wxt build` Chrome and Firefox                                                                                                        |
+| `e2e`     | PR (Chromium only) | Playwright against built extension                                                                                                    |
+| `release` | Tag `v*`           | Build all targets, attach zip artifacts to GitHub Release. Chrome Web Store upload **manual** (password manager — never auto-publish) |
 
 Branch protection on `main` (to be enabled when a second contributor joins): require PR, require green CI, require linear history (squash merge).
 
@@ -376,26 +380,31 @@ extension/
 ## 11. Roadmap
 
 ### Milestone 1 — Crypto core
+
 - Argon2id wrapper, render module, memorable module, fingerprint
 - Golden-vector tests
 - No UI
 
 ### Milestone 2 — Minimum viable extension
+
 - Service worker + popup (unlock, current site, fill via copy-to-clipboard)
 - `chrome.storage.local` schema v1
 - Manual install for testing
 
 ### Milestone 3 — Content script & inline UI
+
 - Field detection
 - Floating badge with Fill button
 - Per-site profile tweak panel
 
 ### Milestone 4 — Options page & PIN mode
+
 - Full options UI
 - PIN setup flow with warning
 - Export / import preferences
 
 ### Milestone 5 — Polishing & store submission
+
 - Playwright E2E suite
 - Privacy policy and store listing
 - Manual review pass against the threat model
