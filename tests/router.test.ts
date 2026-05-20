@@ -91,7 +91,9 @@ describe("router — fingerprint, profiles, state and wipe", () => {
     const res = await handleRequest({ kind: "fingerprint", master: "any-master" });
     if (res.ok === false) throw new Error(res.error);
     if (!("fingerprint" in res)) throw new Error("missing fingerprint");
-    expect(res.fingerprint.split(" ")).toHaveLength(3);
+    const fp = res.fingerprint;
+    if (fp === null) throw new Error("fingerprint should not be null");
+    expect(fp.split(" ")).toHaveLength(3);
   });
 
   it("reads and writes per-site profiles", async () => {
