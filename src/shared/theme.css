@@ -9,6 +9,7 @@
 @import "tailwindcss";
 @import "@fontsource-variable/geist/index.css";
 @import "@fontsource-variable/geist-mono/index.css";
+@import "./atoms.css";
 
 /* Treat `.dark` on any ancestor as a dark-mode toggle. Without this we'd
    still respect `prefers-color-scheme` but couldn't force a theme. */

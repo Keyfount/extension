@@ -4,6 +4,7 @@ import { send } from "../api.js";
 import { Header } from "./Header.js";
 import {
   IconCheck,
+  IconChevronDown,
   IconCopy,
   IconEye,
   IconEyeOff,
@@ -11,7 +12,9 @@ import {
   IconSettings,
 } from "../../shared/icons.js";
 import { t } from "../../shared/i18n.js";
+import { ProfileEditor } from "../../shared/ProfileEditor.js";
 import { POP_IN, SOFT_SPRING, TAP_SCALE } from "../../shared/motion.js";
+import type { Profile } from "../../shared/types.js";
 import {
   activeDomain,
   activeEmail,
@@ -26,12 +29,33 @@ import {
 export function MainScreen() {
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [profile, setProfile] = useState<Profile | null>(null);
 
   useEffect(() => {
     generated.value = null;
     setRevealed(false);
     setCopied(false);
+    setProfile(null);
+    setShowProfile(false);
   }, [activeDomain.value, activeEmail.value]);
+
+  // Lazy-load the per-site profile when the user opens the customise panel.
+  useEffect(() => {
+    if (!showProfile || profile !== null || activeDomain.value === null) return;
+    let cancelled = false;
+    void send({ kind: "getProfile", domain: activeDomain.value }).then(
+      (response) => {
+        if (!cancelled) setProfile(response.profile);
+      },
+      () => {
+        // ignore — generate still works with the default
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [showProfile, profile, activeDomain.value]);
 
   const generate = useCallback(async () => {
     if (activeDomain.value === null) return;
@@ -42,12 +66,25 @@ export function MainScreen() {
         kind: "generate",
         domain: activeDomain.value,
         email: activeEmail.value.trim(),
+        ...(profile !== null ? { profile } : {}),
       });
       generated.value = response.password;
     } catch (error) {
       errorMessage.value = error instanceof Error ? error.message : "generation failed";
     } finally {
       busy.value = false;
+    }
+  }, [profile]);
+
+  const updateProfile = useCallback(async (next: Profile) => {
+    setProfile(next);
+    generated.value = null;
+    if (activeDomain.value !== null) {
+      try {
+        await send({ kind: "setProfile", domain: activeDomain.value, profile: next });
+      } catch {
+        // swallowed — the next generate will still use the in-memory next
+      }
     }
   }, []);
 
@@ -133,6 +170,47 @@ export function MainScreen() {
           >
             {busy.value ? t("common_generating") : t("common_generate")}
           </motion.button>
+
+          <div class="flex flex-col">
+            <button
+              type="button"
+              class="flex items-center justify-between gap-2 py-1.5 px-1 text-xs text-(--color-ink-muted) hover:text-(--color-ink) transition-colors cursor-pointer bg-transparent border-0 font-medium"
+              onClick={() => setShowProfile((v) => !v)}
+              aria-expanded={showProfile}
+            >
+              <span>{t("badge_customize")}</span>
+              <motion.span
+                animate={{ rotate: showProfile ? 180 : 0 }}
+                transition={SOFT_SPRING}
+                class="grid place-items-center"
+              >
+                <IconChevronDown size={14} />
+              </motion.span>
+            </button>
+            <AnimatePresence>
+              {showProfile ? (
+                <motion.div
+                  key="profile"
+                  class="overflow-hidden"
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1, transition: SOFT_SPRING }}
+                  exit={{ height: 0, opacity: 0, transition: { duration: 0.15 } }}
+                >
+                  <div class="pt-3 pb-1">
+                    {profile !== null ? (
+                      <ProfileEditor profile={profile} onChange={updateProfile} compact />
+                    ) : (
+                      <div class="flex flex-col gap-2">
+                        <div class="skeleton h-7 w-full" />
+                        <div class="skeleton h-4 w-2/3" />
+                        <div class="skeleton h-4 w-full" />
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
+          </div>
 
           <AnimatePresence>
             {generated.value !== null ? (

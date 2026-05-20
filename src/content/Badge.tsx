@@ -15,6 +15,7 @@ import { t } from "../shared/i18n.js";
 import type { Profile } from "../shared/types.js";
 import { readUsername } from "./detect.js";
 import { BackgroundError, send } from "./messaging.js";
+import atomStyles from "../shared/atoms.css?inline";
 import badgeStyles from "./badge.css?inline";
 
 const HOST_TAG = "itsmypassword-badge";
@@ -31,7 +32,7 @@ export function attachBadge(password: HTMLInputElement): BadgeController {
     "position: absolute; z-index: 2147483647; width: 0; height: 0; pointer-events: none; margin: 0; padding: 0;";
   const shadow = host.attachShadow({ mode: "closed" });
   const styleEl = document.createElement("style");
-  styleEl.textContent = badgeStyles;
+  styleEl.textContent = `${atomStyles}\n${badgeStyles}`;
   shadow.appendChild(styleEl);
   const mount = document.createElement("div");
   shadow.appendChild(mount);
