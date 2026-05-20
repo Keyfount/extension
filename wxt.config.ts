@@ -1,4 +1,5 @@
 import { defineConfig } from "wxt";
+import tailwindcss from "@tailwindcss/vite";
 
 /**
  * WXT configuration for ItsMyPassword.
@@ -31,10 +32,13 @@ export default defineConfig({
   },
 
   vite: () => ({
+    plugins: [tailwindcss()],
     resolve: {
       alias: {
         react: "preact/compat",
         "react-dom": "preact/compat",
+        "react/jsx-runtime": "preact/jsx-runtime",
+        "react-dom/client": "preact/compat/client",
       },
     },
     esbuild: {
