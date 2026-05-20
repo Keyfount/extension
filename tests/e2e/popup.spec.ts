@@ -24,7 +24,9 @@ test.describe("popup setup, lock and unlock", () => {
     await setupInputs.nth(1).fill("a-very-long-master-pass");
     await setup.locator('button[type="submit"]').click();
     // Wait for unlocked state — text input becomes visible.
-    await expect(setup.locator(".popup__header-actions button").first()).toBeVisible({ timeout: 30_000 });
+    await expect(setup.locator(".popup__header-actions button").first()).toBeVisible({
+      timeout: 30_000,
+    });
 
     const fingerprint = await setup.locator(".fingerprint").first().textContent();
     expect(fingerprint?.length).toBeGreaterThan(0);
