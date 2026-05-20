@@ -1,5 +1,6 @@
 import type { JSX, ComponentChildren } from "preact";
 import { useEffect, useState } from "preact/hooks";
+import { motion } from "framer-motion";
 import { send } from "./api.js";
 import { SitesSection } from "./components/SitesSection.js";
 import { PinSection } from "./components/PinSection.js";
@@ -7,6 +8,7 @@ import { DangerSection } from "./components/DangerSection.js";
 import { ProfileEditor } from "../shared/ProfileEditor.js";
 import { IconBolt } from "../shared/icons.js";
 import { t } from "../shared/i18n.js";
+import { SOFT_SPRING } from "../shared/motion.js";
 import type { Profile } from "../shared/types.js";
 
 interface State {
@@ -41,9 +43,9 @@ export function App() {
 
   if (error !== null) {
     return (
-      <main class="page">
-        <Header />
-        <div class="callout callout--danger" role="alert">
+      <main class="max-w-3xl mx-auto px-6 pt-12 pb-16 flex flex-col gap-8">
+        <PageHeader />
+        <div class="callout callout-danger" role="alert">
           {error}
         </div>
       </main>
@@ -52,20 +54,28 @@ export function App() {
 
   if (state === null) {
     return (
-      <main class="page">
-        <Header />
-        <div class="section__body">
-          <div class="skeleton" style="height: 18px; width: 40%;" />
-          <div class="skeleton" style="height: 14px; width: 70%;" />
-          <div class="skeleton" style="height: 60px;" />
+      <main class="max-w-3xl mx-auto px-6 pt-12 pb-16 flex flex-col gap-8">
+        <PageHeader />
+        <div class="card">
+          <div class="skeleton h-5 w-2/5" />
+          <div class="skeleton h-3.5 w-3/4" />
+          <div class="skeleton h-16" />
         </div>
       </main>
     );
   }
 
   return (
-    <main class="page">
-      <Header />
+    <motion.main
+      class="max-w-3xl mx-auto px-6 pt-12 pb-16 flex flex-col gap-8"
+      initial="initial"
+      animate="animate"
+      variants={{
+        initial: {},
+        animate: { transition: { staggerChildren: 0.06, delayChildren: 0.08 } },
+      }}
+    >
+      <PageHeader />
 
       <Section title={t("options_default_section")} hint={t("options_default_hint")}>
         <ProfileEditor
@@ -78,14 +88,13 @@ export function App() {
       </Section>
 
       <Section title={t("options_autolock_section")} hint={t("options_autolock_hint")}>
-        <div class="row">
-          <span class="row__title">{t("options_autolock_label")}</span>
+        <div class="flex items-center justify-between gap-4">
+          <span class="text-sm font-medium text-(--color-ink)">{t("options_autolock_label")}</span>
           <input
-            class="input input--mono"
+            class="input input-mono w-24"
             type="number"
             min={0}
             max={1440}
-            style="width: 100px;"
             value={state.autoLockMinutes}
             onChange={async (e) => {
               const minutes = Number.parseInt((e.target as HTMLInputElement).value, 10);
@@ -103,21 +112,26 @@ export function App() {
       <SitesSection sites={state.sites} onChange={refresh} />
 
       <DangerSection onChange={refresh} />
-    </main>
+    </motion.main>
   );
 }
 
-function Header() {
+function PageHeader() {
   return (
-    <header class="page__header">
-      <div class="page__title-row">
-        <span class="page__brand-bolt">
+    <motion.header
+      class="flex flex-col gap-2 pb-4"
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={SOFT_SPRING}
+    >
+      <div class="flex items-center gap-3">
+        <span class="grid place-items-center w-8 h-8 rounded-[10px] bg-(--color-accent-500)/12 text-(--color-accent-600) dark:text-(--color-accent-400)">
           <IconBolt size={18} />
         </span>
-        <h1 class="h-title">{t("extName")}</h1>
+        <h1 class="m-0 text-2xl font-semibold tracking-[-0.025em]">{t("extName")}</h1>
       </div>
-      <p class="muted">{t("options_subtitle")}</p>
-    </header>
+      <p class="text-(--color-ink-muted) text-sm">{t("options_subtitle")}</p>
+    </motion.header>
   );
 }
 
@@ -133,15 +147,25 @@ function Section({
   children: ComponentChildren;
 }) {
   return (
-    <section class="section">
-      <div class="section__header">
-        <div class="row__text">
-          <h2 class="h-section">{title}</h2>
-          {hint !== undefined ? <span class="row__hint">{hint}</span> : null}
+    <motion.section
+      class="flex flex-col gap-4"
+      variants={{
+        initial: { opacity: 0, y: 12 },
+        animate: { opacity: 1, y: 0, transition: SOFT_SPRING },
+      }}
+    >
+      <div class="flex items-baseline justify-between gap-3">
+        <div class="flex flex-col gap-0.5 flex-1 min-w-0">
+          <h2 class="m-0 text-base font-semibold tracking-[-0.015em] text-(--color-ink)">
+            {title}
+          </h2>
+          {hint !== undefined ? (
+            <span class="text-xs text-(--color-ink-muted) leading-snug">{hint}</span>
+          ) : null}
         </div>
-        {actions !== undefined ? <div class="actions">{actions}</div> : null}
+        {actions !== undefined ? <div class="flex gap-2">{actions}</div> : null}
       </div>
-      <div class="section__body">{children}</div>
-    </section>
+      <div class="card p-6 shadow-sm">{children}</div>
+    </motion.section>
   );
 }
