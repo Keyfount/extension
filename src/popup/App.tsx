@@ -3,6 +3,7 @@ import { AnimatePresence } from "framer-motion";
 import { send } from "./api.js";
 import { LoadingScreen } from "./components/LoadingScreen.js";
 import { MainScreen } from "./components/MainScreen.js";
+import { SettingsScreen } from "./components/SettingsScreen.js";
 import { SetupScreen } from "./components/SetupScreen.js";
 import { UnlockScreen } from "./components/UnlockScreen.js";
 import { registrableDomain } from "../shared/domain.js";
@@ -30,6 +31,8 @@ function renderScreen() {
       return <UnlockScreen key="unlock" hasPin={hasPin.value} />;
     case "main":
       return <MainScreen key="main" />;
+    case "settings":
+      return <SettingsScreen key="settings" />;
   }
 }
 

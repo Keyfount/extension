@@ -106,7 +106,7 @@ export function MainScreen() {
   }, []);
 
   const onSettings = useCallback(() => {
-    chrome.runtime.openOptionsPage();
+    screen.value = "settings";
   }, []);
 
   return (

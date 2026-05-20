@@ -6,7 +6,7 @@
  */
 import { computed, signal } from "@preact/signals";
 
-export type Screen = "loading" | "setup" | "unlock" | "main";
+export type Screen = "loading" | "setup" | "unlock" | "main" | "settings";
 
 export const screen = signal<Screen>("loading");
 
