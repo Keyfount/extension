@@ -47,7 +47,7 @@ export function attachBadge(password: HTMLInputElement): BadgeController {
     updateRef = fn;
   };
 
-  // Width must match .badge__panel in badge.css. We use it to decide which
+  // Width must match .badge__panel in badge.css. Used to decide which
   // side of the trigger the panel should open from.
   const PANEL_WIDTH = 300;
   const VIEWPORT_PADDING = 8;
@@ -65,11 +65,6 @@ export function attachBadge(password: HTMLInputElement): BadgeController {
     host.style.top = `${window.scrollY + rect.top}px`;
     host.style.left = `${window.scrollX + triggerLeft}px`;
 
-    // Decide which side the panel should open from. Default is "right"
-    // (the panel anchors to the trigger's right edge and extends left,
-    // which works for most fields). If there isn't enough room on the
-    // left, flip to "left" — the panel anchors to the trigger's left
-    // edge and extends right instead.
     const viewportWidth = document.documentElement.clientWidth;
     const panelLeftIfRightAnchored = triggerLeft + TRIGGER_SIZE - PANEL_WIDTH;
     const panelRightIfLeftAnchored = triggerLeft + PANEL_WIDTH;
@@ -112,9 +107,9 @@ type Status =
   | { kind: "idle" }
   | { kind: "loading" }
   | { kind: "first-run" }
-  | { kind: "locked" }
+  | { kind: "locked"; hasPin: boolean }
   | { kind: "no-domain" }
-  | { kind: "no-email" }
+  | { kind: "no-email"; domain: string }
   | { kind: "ready"; password: string; domain: string }
   | { kind: "error"; message: string };
 
@@ -124,11 +119,12 @@ function Badge({ password, registerOpen, registerUpdate }: BadgeProps) {
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [profile, setProfile] = useState<Profile | null>(null);
   const [copied, setCopied] = useState(false);
+  const [emailOverride, setEmailOverride] = useState("");
 
   useEffect(() => {
     registerOpen(() => setOpen(true));
     registerUpdate(() => {
-      // no-op for now — Preact re-renders position-driven elements via CSS
+      /* no-op */
     });
   }, [registerOpen, registerUpdate]);
 
@@ -146,14 +142,13 @@ function Badge({ password, registerOpen, registerUpdate }: BadgeProps) {
     return () => window.removeEventListener("mousedown", onClick, true);
   }, [open, password]);
 
-  // Re-suggest whenever the panel opens.
   useEffect(() => {
     if (!open) return;
     void refresh();
   }, [open]);
 
   const refresh = useCallback(
-    async (override?: Profile) => {
+    async (override?: { profile?: Profile; email?: string }) => {
       setStatus({ kind: "loading" });
       setCopied(false);
       try {
@@ -163,7 +158,7 @@ function Badge({ password, registerOpen, registerUpdate }: BadgeProps) {
           return;
         }
         if (state.locked) {
-          setStatus({ kind: "locked" });
+          setStatus({ kind: "locked", hasPin: state.hasPin });
           return;
         }
         const domain = registrableDomain(window.location.href);
@@ -171,19 +166,18 @@ function Badge({ password, registerOpen, registerUpdate }: BadgeProps) {
           setStatus({ kind: "no-domain" });
           return;
         }
-        const email = readUsername(password);
+        const email = override?.email ?? (emailOverride.trim() || readUsername(password));
         if (email.length === 0) {
-          setStatus({ kind: "no-email" });
+          setStatus({ kind: "no-email", domain });
           return;
         }
 
-        // Pull the current profile so we can edit it inline.
-        if (profile === null && override === undefined) {
+        if (profile === null && override?.profile === undefined) {
           const p = await send({ kind: "getProfile", domain });
           setProfile(p.profile);
         }
 
-        const effective = override ?? profile;
+        const effective = override?.profile ?? profile;
         const response = await send({
           kind: "generate",
           domain,
@@ -198,7 +192,7 @@ function Badge({ password, registerOpen, registerUpdate }: BadgeProps) {
         });
       }
     },
-    [password, profile],
+    [password, profile, emailOverride],
   );
 
   const fill = useCallback(() => {
@@ -226,16 +220,47 @@ function Badge({ password, registerOpen, registerUpdate }: BadgeProps) {
     async (next: Profile) => {
       setProfile(next);
       if (status.kind === "ready") {
-        const domain = status.domain;
         try {
-          await send({ kind: "setProfile", domain, profile: next });
+          await send({ kind: "setProfile", domain: status.domain, profile: next });
         } catch {
-          // ignore — the badge still re-derives below
+          /* swallowed */
         }
       }
-      void refresh(next);
+      void refresh({ profile: next });
     },
     [refresh, status],
+  );
+
+  const submitEmail = useCallback(
+    (event: Event) => {
+      event.preventDefault();
+      void refresh({ email: emailOverride.trim() });
+    },
+    [refresh, emailOverride],
+  );
+
+  const submitUnlock = useCallback(
+    async (master: string, mode: "master" | "pin") => {
+      try {
+        if (mode === "master") {
+          await send({ kind: "unlock", master });
+        } else {
+          await send({ kind: "unlockWithPin", pin: master });
+        }
+        void refresh();
+      } catch (error) {
+        setStatus({
+          kind: "error",
+          message:
+            error instanceof BackgroundError
+              ? error.message
+              : mode === "pin"
+                ? t("unlock_incorrect_pin")
+                : t("unlock_incorrect"),
+        });
+      }
+    },
+    [refresh],
   );
 
   return (
@@ -285,29 +310,167 @@ function Badge({ password, registerOpen, registerUpdate }: BadgeProps) {
             </div>
           </div>
 
-          {status.kind === "ready" && showSettings && profile !== null ? (
-            <div class="badge__settings">
-              <ProfileEditor profile={profile} onChange={onProfileChange} compact />
-            </div>
-          ) : status.kind === "ready" ? (
-            <>
-              <div class="badge__password">{status.password}</div>
-              <div class="badge__actions">
-                <button type="button" class="badge__btn badge__btn--primary" onClick={fill}>
-                  {t("common_fill")}
-                </button>
-                <button type="button" class="badge__btn" onClick={copy}>
-                  {copied ? <IconCheck size={12} /> : <IconCopy size={12} />}
-                  {copied ? t("common_copied") : t("common_copy")}
-                </button>
-              </div>
-            </>
-          ) : (
-            <p class="badge__status">{statusMessage(status)}</p>
-          )}
+          {renderBody({
+            status,
+            showSettings,
+            profile,
+            copied,
+            emailOverride,
+            setEmailOverride,
+            fill,
+            copy,
+            onProfileChange,
+            submitEmail,
+            submitUnlock,
+          })}
         </div>
       ) : null}
     </div>
+  );
+}
+
+interface BodyProps {
+  status: Status;
+  showSettings: boolean;
+  profile: Profile | null;
+  copied: boolean;
+  emailOverride: string;
+  setEmailOverride: (v: string) => void;
+  fill: () => void;
+  copy: () => void;
+  onProfileChange: (p: Profile) => void;
+  submitEmail: (e: Event) => void;
+  submitUnlock: (value: string, mode: "master" | "pin") => void;
+}
+
+function renderBody(props: BodyProps) {
+  const { status } = props;
+
+  if (status.kind === "ready" && props.showSettings && props.profile !== null) {
+    return <ProfileEditor profile={props.profile} onChange={props.onProfileChange} compact />;
+  }
+
+  if (status.kind === "ready") {
+    return (
+      <>
+        <div class="badge__password">{status.password}</div>
+        <div class="badge__actions">
+          <button type="button" class="badge__btn badge__btn--primary" onClick={props.fill}>
+            {t("common_fill")}
+          </button>
+          <button type="button" class="badge__btn" onClick={props.copy}>
+            {props.copied ? <IconCheck size={12} /> : <IconCopy size={12} />}
+            {props.copied ? t("common_copied") : t("common_copy")}
+          </button>
+        </div>
+      </>
+    );
+  }
+
+  if (status.kind === "no-email") {
+    return (
+      <form class="badge__form" onSubmit={props.submitEmail}>
+        <p class="badge__status">{t("badge_no_email")}</p>
+        <input
+          class="badge__input"
+          type="text"
+          inputMode="email"
+          autocomplete="email"
+          placeholder={t("badge_email_placeholder")}
+          value={props.emailOverride}
+          onInput={(e) => props.setEmailOverride((e.target as HTMLInputElement).value)}
+          autoFocus
+        />
+        <button
+          type="submit"
+          class="badge__btn badge__btn--primary"
+          disabled={props.emailOverride.trim().length === 0}
+        >
+          {t("common_generate")}
+        </button>
+      </form>
+    );
+  }
+
+  if (status.kind === "locked") {
+    return <UnlockForm hasPin={status.hasPin} onSubmit={props.submitUnlock} />;
+  }
+
+  return <p class="badge__status">{statusMessage(status)}</p>;
+}
+
+function UnlockForm({
+  hasPin,
+  onSubmit,
+}: {
+  hasPin: boolean;
+  onSubmit: (value: string, mode: "master" | "pin") => void;
+}) {
+  const [mode, setMode] = useState<"master" | "pin">(hasPin ? "pin" : "master");
+  const [value, setValue] = useState("");
+
+  const submit = (event: Event) => {
+    event.preventDefault();
+    if (value.length === 0) return;
+    onSubmit(value, mode);
+  };
+
+  return (
+    <form class="badge__form" onSubmit={submit}>
+      {hasPin ? (
+        <div class="profile-mode" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            aria-pressed={mode === "pin"}
+            onClick={() => {
+              setMode("pin");
+              setValue("");
+            }}
+          >
+            {t("unlock_pin_tab")}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-pressed={mode === "master"}
+            onClick={() => {
+              setMode("master");
+              setValue("");
+            }}
+          >
+            {t("unlock_master_tab")}
+          </button>
+        </div>
+      ) : null}
+      <input
+        class="badge__input"
+        type="password"
+        autocomplete="current-password"
+        autoFocus
+        {...(mode === "pin"
+          ? {
+              inputMode: "numeric" as const,
+              pattern: "[0-9]*",
+              minLength: 4,
+              maxLength: 6,
+              placeholder: t("unlock_pin_label"),
+            }
+          : { placeholder: t("setup_master_label") })}
+        value={value}
+        onInput={(e) => {
+          const raw = (e.target as HTMLInputElement).value;
+          setValue(mode === "pin" ? raw.replace(/\D/g, "") : raw);
+        }}
+      />
+      <button
+        type="submit"
+        class="badge__btn badge__btn--primary"
+        disabled={mode === "pin" ? value.length < 4 : value.length === 0}
+      >
+        {t("common_unlock")}
+      </button>
+    </form>
   );
 }
 
@@ -317,15 +480,13 @@ function statusMessage(status: Status): string {
     case "loading":
       return t("common_working");
     case "first-run":
-      return t("badge_first_run");
-    case "locked":
-      return t("badge_locked");
+      return t("badge_open_extension");
     case "no-domain":
       return t("badge_no_domain");
-    case "no-email":
-      return t("badge_no_email");
     case "error":
       return status.message;
+    case "locked":
+    case "no-email":
     case "ready":
       return "";
   }
