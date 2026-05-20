@@ -1,7 +1,8 @@
 /**
- * Reusable profile editor — used by both the options page and the inline
- * badge. Kept dependency-light (no framer-motion) so the badge bundle stays
- * small. CSS handles the few transitions we need.
+ * Reusable profile editor — used by the options page, the popup, and the
+ * inline badge. All styling lives in atoms.css (semantic classes) so the
+ * editor renders the same in Tailwind surfaces and inside the badge's
+ * closed shadow root.
  */
 import type { MemorableProfile, Profile, RandomProfile } from "./types.js";
 import { DEFAULT_MEMORABLE_PROFILE, DEFAULT_RANDOM_PROFILE } from "./types.js";
@@ -18,8 +19,8 @@ const CLASS_KEYS = ["lower", "upper", "digits", "symbols"] as const;
 
 export function ProfileEditor({ profile, onChange, compact = false }: Props) {
   return (
-    <div class="flex flex-col gap-4">
-      <div class="segmented grid-cols-2" role="tablist">
+    <div class="profile-editor">
+      <div class="profile-mode" role="tablist">
         <button
           type="button"
           role="tab"
@@ -50,13 +51,11 @@ export function ProfileEditor({ profile, onChange, compact = false }: Props) {
         </button>
       </div>
 
-      <div class="flex flex-col gap-4">
-        {profile.mode === "random" ? (
-          <RandomEditor profile={profile} onChange={onChange} />
-        ) : (
-          <MemorableEditor profile={profile} onChange={onChange} />
-        )}
-      </div>
+      {profile.mode === "random" ? (
+        <RandomEditor profile={profile} onChange={onChange} />
+      ) : (
+        <MemorableEditor profile={profile} onChange={onChange} />
+      )}
 
       {!compact ? (
         <CounterField
@@ -77,14 +76,13 @@ function RandomEditor({
 }) {
   return (
     <>
-      <div class="flex flex-col gap-2">
-        <div class="flex justify-between items-baseline">
-          <span class="field-label">{t("profile_length_label")}</span>
-          <span class="font-mono text-sm text-(--color-accent-600) dark:text-(--color-accent-400)">
-            {profile.length}
-          </span>
+      <div class="profile-row">
+        <div class="profile-row-head">
+          <span class="profile-label">{t("profile_length_label")}</span>
+          <span class="profile-row-value">{profile.length}</span>
         </div>
         <input
+          class="profile-range"
           type="range"
           min={5}
           max={35}
@@ -98,9 +96,9 @@ function RandomEditor({
           }
         />
       </div>
-      <div class="flex flex-col gap-2">
-        <span class="field-label">{t("profile_classes_label")}</span>
-        <div class="grid grid-cols-2 gap-2">
+      <div class="profile-row">
+        <span class="profile-label">{t("profile_classes_label")}</span>
+        <div class="profile-classes">
           {CLASS_KEYS.map((key) => (
             <Toggle
               key={key}
@@ -124,14 +122,13 @@ function MemorableEditor({
 }) {
   return (
     <>
-      <div class="flex flex-col gap-2">
-        <div class="flex justify-between items-baseline">
-          <span class="field-label">{t("profile_words_label")}</span>
-          <span class="font-mono text-sm text-(--color-accent-600) dark:text-(--color-accent-400)">
-            {profile.wordCount}
-          </span>
+      <div class="profile-row">
+        <div class="profile-row-head">
+          <span class="profile-label">{t("profile_words_label")}</span>
+          <span class="profile-row-value">{profile.wordCount}</span>
         </div>
         <input
+          class="profile-range"
           type="range"
           min={5}
           max={8}
@@ -145,14 +142,13 @@ function MemorableEditor({
           }
         />
       </div>
-      <div class="flex flex-col gap-2">
-        <span class="field-label">{t("profile_separator_label")}</span>
-        <div class="segmented grid-cols-3">
+      <div class="profile-row">
+        <span class="profile-label">{t("profile_separator_label")}</span>
+        <div class="profile-separator">
           {(["-", ".", "_"] as const).map((sep) => (
             <button
               key={sep}
               type="button"
-              class="font-mono"
               aria-pressed={profile.separator === sep}
               onClick={() => onChange({ ...profile, separator: sep })}
             >
@@ -177,10 +173,9 @@ function MemorableEditor({
 
 function CounterField({ counter, onChange }: { counter: number; onChange: (n: number) => void }) {
   return (
-    <label class="flex flex-col gap-2">
-      <span class="field-label">{t("profile_counter_label")}</span>
+    <label class="profile-counter">
+      <span class="profile-label">{t("profile_counter_label")}</span>
       <input
-        class="input input-mono"
         type="number"
         min={1}
         value={counter}
@@ -189,7 +184,7 @@ function CounterField({ counter, onChange }: { counter: number; onChange: (n: nu
           if (Number.isFinite(n) && n >= 1) onChange(n);
         }}
       />
-      <span class="field-hint">{t("profile_counter_hint")}</span>
+      <span class="profile-hint">{t("profile_counter_hint")}</span>
     </label>
   );
 }
@@ -204,16 +199,16 @@ function Toggle({
   onChange: (next: boolean) => void;
 }) {
   return (
-    <label class="flex items-center justify-between gap-2 cursor-pointer text-sm">
+    <label class="profile-toggle">
       <span>{label}</span>
-      <span class="switch">
+      <span class="atom-switch">
         <input
           type="checkbox"
           checked={checked}
           onChange={(e) => onChange((e.target as HTMLInputElement).checked)}
         />
-        <span class="switch-track" />
-        <span class="switch-thumb" />
+        <span class="atom-switch-track" />
+        <span class="atom-switch-thumb" />
       </span>
     </label>
   );
