@@ -1,0 +1,142 @@
+{
+  "extName": { "message": "ItsMyPassword" },
+  "extDescription": {
+    "message": "Deterministic password manager. No vault, no sync — just an algorithm."
+  },
+
+  "common_unlock": { "message": "Unlock" },
+  "common_lock": { "message": "Lock" },
+  "common_cancel": { "message": "Cancel" },
+  "common_save": { "message": "Save" },
+  "common_settings": { "message": "Settings" },
+  "common_create": { "message": "Create" },
+  "common_back": { "message": "Back" },
+  "common_close": { "message": "Close" },
+  "common_copy": { "message": "Copy" },
+  "common_copied": { "message": "Copied" },
+  "common_fill": { "message": "Fill" },
+  "common_reveal": { "message": "Reveal" },
+  "common_hide": { "message": "Hide" },
+  "common_loading": { "message": "Loading" },
+  "common_working": { "message": "Working" },
+  "common_generate": { "message": "Generate" },
+  "common_generating": { "message": "Generating" },
+  "common_edit": { "message": "Edit" },
+  "common_delete": { "message": "Delete" },
+  "common_remove": { "message": "Remove" },
+
+  "setup_welcome": { "message": "Welcome" },
+  "setup_intro": {
+    "message": "ItsMyPassword does not store your passwords — it recomputes them from your master password each time. Choose a master you can remember. We cannot recover it."
+  },
+  "setup_master_label": { "message": "Master password" },
+  "setup_confirm_label": { "message": "Confirm" },
+  "setup_create_button": { "message": "Create my fingerprint" },
+  "setup_creating": { "message": "Creating…" },
+  "setup_min_length_error": {
+    "message": "Master password must be at least $LEN$ characters",
+    "placeholders": { "len": { "content": "$1" } }
+  },
+  "setup_mismatch_error": { "message": "Passwords do not match" },
+  "setup_fingerprint_hint": {
+    "message": "Remember these three symbols — they should appear every time you unlock."
+  },
+
+  "unlock_title": { "message": "Welcome back" },
+  "unlock_master_tab": { "message": "Master password" },
+  "unlock_pin_tab": { "message": "PIN" },
+  "unlock_pin_label": { "message": "PIN code" },
+  "unlock_expected_label": { "message": "Expected fingerprint" },
+  "unlock_typed_label": { "message": "Typed fingerprint" },
+  "unlock_mismatch_hint": {
+    "message": "Fingerprints don't match — check your master password."
+  },
+  "unlock_unlocking": { "message": "Unlocking…" },
+  "unlock_incorrect": { "message": "Incorrect master password" },
+  "unlock_incorrect_pin": { "message": "Incorrect PIN" },
+
+  "main_username_label": { "message": "Email or username" },
+  "main_username_placeholder": { "message": "you@example.com" },
+  "main_no_site": {
+    "message": "Open a website (https://…) to generate a password for it."
+  },
+  "main_no_email": {
+    "message": "Type your email above, then click Generate."
+  },
+
+  "options_title": { "message": "Settings" },
+  "options_subtitle": {
+    "message": "Everything stays on this device. We never store generated passwords."
+  },
+  "options_language_section": { "message": "Language" },
+  "options_default_section": { "message": "Default profile" },
+  "options_default_hint": {
+    "message": "Used on sites without a specific override."
+  },
+  "options_autolock_section": { "message": "Auto-lock" },
+  "options_autolock_hint": {
+    "message": "The master is wiped from memory after this many minutes. Set to 0 to disable."
+  },
+  "options_autolock_label": { "message": "Minutes" },
+  "options_pin_section": { "message": "PIN unlock" },
+  "options_pin_hint": {
+    "message": "Unlock with a 4–6 digit PIN instead of the full master."
+  },
+  "options_pin_warning": {
+    "message": "Activating the PIN stores your master password on this device, encrypted with the PIN. Anyone with your user account and your PIN can derive every password. Cancel if unsure."
+  },
+  "options_pin_enabled": { "message": "PIN is active" },
+  "options_pin_enable": { "message": "Enable PIN…" },
+  "options_pin_remove": { "message": "Remove PIN" },
+  "options_pin_choose": { "message": "Choose a PIN" },
+  "options_pin_confirm_enable": { "message": "Enable PIN" },
+  "options_pin_saving": { "message": "Saving…" },
+  "options_sites_section": { "message": "Per-site overrides" },
+  "options_sites_empty": {
+    "message": "No overrides yet. Sites you customise from the popup show up here."
+  },
+  "options_sites_import": { "message": "Import" },
+  "options_sites_export": { "message": "Export" },
+  "options_danger_section": { "message": "Reset" },
+  "options_danger_hint": {
+    "message": "Removes the master fingerprint, all overrides, the PIN and the lock settings. Your derived passwords are not stored anywhere — only your memory of the master recovers them."
+  },
+  "options_danger_reset": { "message": "Reset to first run" },
+  "options_danger_confirm": { "message": "Yes, forget everything" },
+  "options_danger_wiping": { "message": "Wiping…" },
+
+  "profile_mode_random": { "message": "Random characters" },
+  "profile_mode_memorable": { "message": "Memorable passphrase" },
+  "profile_length_label": { "message": "Length" },
+  "profile_words_label": { "message": "Words" },
+  "profile_classes_label": { "message": "Character classes" },
+  "profile_separator_label": { "message": "Separator" },
+  "profile_capitalise_label": { "message": "Capitalise one word" },
+  "profile_suffix_label": { "message": "Append a digit and a symbol" },
+  "profile_counter_label": { "message": "Counter" },
+  "profile_counter_hint": {
+    "message": "Bump the counter to rotate a compromised password without changing your master."
+  },
+  "profile_class_lower": { "message": "Lowercase" },
+  "profile_class_upper": { "message": "Uppercase" },
+  "profile_class_digits": { "message": "Digits" },
+  "profile_class_symbols": { "message": "Symbols" },
+
+  "badge_ready_for": {
+    "message": "Ready for $DOMAIN$",
+    "placeholders": { "domain": { "content": "$1" } }
+  },
+  "badge_locked": {
+    "message": "Locked — click the toolbar icon to unlock."
+  },
+  "badge_first_run": {
+    "message": "Open the toolbar icon to set up your master password."
+  },
+  "badge_no_domain": { "message": "This page is not a regular website." },
+  "badge_no_email": {
+    "message": "Type your email in the form, then I'll be able to generate."
+  },
+  "badge_failed": { "message": "Could not generate a password." },
+  "badge_no_clipboard": { "message": "Couldn't access the clipboard." },
+  "badge_customize": { "message": "Customise" }
+}

@@ -12,12 +12,13 @@ export default defineConfig({
   outDir: ".output",
 
   manifest: {
-    name: "ItsMyPassword",
-    description: "Deterministic password manager. No vault, no sync — just an algorithm.",
+    name: "__MSG_extName__",
+    description: "__MSG_extDescription__",
+    default_locale: "en",
     permissions: ["storage", "activeTab", "scripting", "alarms"],
     host_permissions: [],
     action: {
-      default_title: "ItsMyPassword",
+      default_title: "__MSG_extName__",
     },
     options_ui: {
       page: "options.html",

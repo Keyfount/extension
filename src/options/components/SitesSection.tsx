@@ -1,7 +1,9 @@
 import { useState } from "preact/hooks";
 import type { Profile } from "../../shared/types.js";
 import { send } from "../api.js";
-import { ProfileEditor } from "./ProfileEditor.js";
+import { ProfileEditor } from "../../shared/ProfileEditor.js";
+import { IconDownload, IconTrash, IconUpload } from "../../shared/icons.js";
+import { t } from "../../shared/i18n.js";
 
 interface Props {
   sites: Record<string, Profile>;
@@ -33,78 +35,85 @@ export function SitesSection({ sites, onChange }: Props) {
   };
 
   return (
-    <section class="card">
-      <header class="card__header">
-        <h2>Per-site overrides</h2>
+    <section class="section">
+      <div class="section__header">
+        <div class="row__text">
+          <h2 class="h-section">{t("options_sites_section")}</h2>
+        </div>
         <div class="actions">
-          <label class="button--ghost" role="button">
+          <label class="btn btn--ghost btn--sm file-trigger">
+            <IconUpload size={14} />
+            {t("options_sites_import")}
             <input
               type="file"
               accept="application/json"
-              hidden
               onChange={(e) => {
                 const file = (e.target as HTMLInputElement).files?.[0];
                 if (file) void importJson(file);
               }}
             />
-            Import
           </label>
           <button
-            class="button--ghost"
             type="button"
+            class="btn btn--ghost btn--sm"
             disabled={domains.length === 0}
             onClick={exportJson}
           >
-            Export
+            <IconDownload size={14} />
+            {t("options_sites_export")}
           </button>
         </div>
-      </header>
+      </div>
 
-      {domains.length === 0 ? (
-        <p class="muted">
-          No overrides yet. Any site you customise from the popup will appear here.
-        </p>
-      ) : (
-        <ul class="sites">
-          {domains.map((domain) => (
-            <li class="site" key={domain}>
-              <div class="site__row">
-                <strong>{domain}</strong>
-                <div class="actions">
-                  <button
-                    class="button--ghost"
-                    type="button"
-                    onClick={() => setExpanded((c) => (c === domain ? null : domain))}
-                  >
-                    {expanded === domain ? "Hide" : "Edit"}
-                  </button>
-                  <button
-                    class="button--ghost"
-                    type="button"
-                    onClick={async () => {
-                      await send({ kind: "deleteProfile", domain });
-                      await onChange();
-                    }}
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-              {expanded === domain && sites[domain] !== undefined ? (
-                <div class="site__editor">
-                  <ProfileEditor
-                    profile={sites[domain]!}
-                    onChange={async (next) => {
-                      await send({ kind: "setProfile", domain, profile: next });
-                      await onChange();
-                    }}
-                  />
-                </div>
-              ) : null}
-            </li>
-          ))}
-        </ul>
-      )}
+      <div class="section__body">
+        {domains.length === 0 ? (
+          <p class="muted">{t("options_sites_empty")}</p>
+        ) : (
+          <ul class="sites">
+            {domains.map((domain) => {
+              const isExpanded = expanded === domain;
+              return (
+                <li class={`site ${isExpanded ? "site--expanded" : ""}`} key={domain}>
+                  <div class="site__row">
+                    <span class="site__name mono">{domain}</span>
+                    <div class="site__actions">
+                      <button
+                        type="button"
+                        class="btn btn--ghost btn--sm"
+                        onClick={() => setExpanded((c) => (c === domain ? null : domain))}
+                      >
+                        {isExpanded ? t("common_close") : t("common_edit")}
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn--danger btn--sm"
+                        aria-label={t("common_delete")}
+                        onClick={async () => {
+                          await send({ kind: "deleteProfile", domain });
+                          await onChange();
+                        }}
+                      >
+                        <IconTrash size={14} />
+                      </button>
+                    </div>
+                  </div>
+                  {isExpanded && sites[domain] !== undefined ? (
+                    <div class="site__editor">
+                      <ProfileEditor
+                        profile={sites[domain]!}
+                        onChange={async (next) => {
+                          await send({ kind: "setProfile", domain, profile: next });
+                          await onChange();
+                        }}
+                      />
+                    </div>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
     </section>
   );
 }

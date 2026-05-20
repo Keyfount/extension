@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import { send } from "../api.js";
+import { Header } from "./Header.js";
+import { t } from "../../shared/i18n.js";
 import { busy, errorMessage, fingerprint, livePreview, screen } from "../state.js";
 
 type Mode = "master" | "pin";
@@ -49,7 +51,7 @@ export function UnlockScreen({ hasPin }: Props) {
         fingerprint.value = response.fingerprint;
         screen.value = "main";
       } catch (error) {
-        errorMessage.value = error instanceof Error ? error.message : "unlock failed";
+        errorMessage.value = error instanceof Error ? error.message : t("unlock_incorrect");
       } finally {
         busy.value = false;
       }
@@ -67,7 +69,7 @@ export function UnlockScreen({ hasPin }: Props) {
         fingerprint.value = response.fingerprint;
         screen.value = "main";
       } catch (error) {
-        errorMessage.value = error instanceof Error ? error.message : "unlock failed";
+        errorMessage.value = error instanceof Error ? error.message : t("unlock_incorrect_pin");
       } finally {
         busy.value = false;
       }
@@ -78,40 +80,45 @@ export function UnlockScreen({ hasPin }: Props) {
   const expected = fingerprint.value;
 
   return (
-    <div class="screen">
-      <h1>Unlock</h1>
+    <div class="popup">
+      <Header subtitle={t("unlock_title")} />
 
       {expected !== null ? (
-        <div class="fingerprint">
-          <span class="muted">Expected fingerprint:</span>{" "}
-          <span class="fingerprint__value">{expected}</span>
+        <div class="fp-surface">
+          <span class="field__label">{t("unlock_expected_label")}</span>
+          <span class="fingerprint">{expected}</span>
         </div>
       ) : null}
 
       {hasPin ? (
-        <div class="field-row">
+        <div class="tabs" role="tablist">
           <button
             type="button"
-            class={mode === "pin" ? "" : "button--ghost"}
+            class="tabs__button"
+            role="tab"
+            aria-pressed={mode === "pin"}
             onClick={() => setMode("pin")}
           >
-            PIN
+            {t("unlock_pin_tab")}
           </button>
           <button
             type="button"
-            class={mode === "master" ? "" : "button--ghost"}
+            class="tabs__button"
+            role="tab"
+            aria-pressed={mode === "master"}
             onClick={() => setMode("master")}
           >
-            Master password
+            {t("unlock_master_tab")}
           </button>
         </div>
       ) : null}
 
       {mode === "master" ? (
-        <form class="screen" onSubmit={submitMaster}>
+        <form class="popup" onSubmit={submitMaster}>
           <label class="field">
-            <span>Master password</span>
+            <span class="field__label">{t("setup_master_label")}</span>
             <input
+              class="input"
               type="password"
               value={master}
               autocomplete="current-password"
@@ -122,24 +129,29 @@ export function UnlockScreen({ hasPin }: Props) {
           </label>
 
           {livePreview.value !== null && livePreview.value !== expected ? (
-            <div class="fingerprint fingerprint--warning">
-              <span class="muted">Typed fingerprint:</span>{" "}
-              <span class="fingerprint__value">{livePreview.value}</span>
-              <p class="muted small">Fingerprints do not match — check your master password.</p>
+            <div class="fp-surface fp-surface--warning fade-in">
+              <span class="field__label">{t("unlock_typed_label")}</span>
+              <span class="fingerprint">{livePreview.value}</span>
+              <span class="field__hint">{t("unlock_mismatch_hint")}</span>
             </div>
           ) : null}
 
-          {errorMessage.value !== null ? <div class="error">{errorMessage.value}</div> : null}
+          {errorMessage.value !== null ? (
+            <div class="field__error" role="alert">
+              {errorMessage.value}
+            </div>
+          ) : null}
 
-          <button type="submit" disabled={busy.value}>
-            {busy.value ? "Unlocking…" : "Unlock"}
+          <button type="submit" class="btn" disabled={busy.value}>
+            {busy.value ? t("unlock_unlocking") : t("common_unlock")}
           </button>
         </form>
       ) : (
-        <form class="screen" onSubmit={submitPin}>
+        <form class="popup" onSubmit={submitPin}>
           <label class="field">
-            <span>PIN</span>
+            <span class="field__label">{t("unlock_pin_label")}</span>
             <input
+              class="input"
               type="password"
               inputMode="numeric"
               pattern="[0-9]*"
@@ -151,9 +163,15 @@ export function UnlockScreen({ hasPin }: Props) {
               onInput={(e) => setPin((e.target as HTMLInputElement).value.replace(/\D/g, ""))}
             />
           </label>
-          {errorMessage.value !== null ? <div class="error">{errorMessage.value}</div> : null}
-          <button type="submit" disabled={busy.value || pin.length < 4}>
-            {busy.value ? "Unlocking…" : "Unlock"}
+
+          {errorMessage.value !== null ? (
+            <div class="field__error" role="alert">
+              {errorMessage.value}
+            </div>
+          ) : null}
+
+          <button type="submit" class="btn" disabled={busy.value || pin.length < 4}>
+            {busy.value ? t("unlock_unlocking") : t("common_unlock")}
           </button>
         </form>
       )}

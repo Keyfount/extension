@@ -1,44 +1,51 @@
 import { expect, test } from "./fixtures.js";
 
 test.describe("popup setup, lock and unlock", () => {
-  test("first-run shows setup, then transitions to the main screen", async ({
-    context,
-    extensionId,
-  }) => {
+  test("first-run setup transitions to the main screen", async ({ context, extensionId }) => {
     const page = await context.newPage();
     await page.goto(`chrome-extension://${extensionId}/popup.html`);
 
-    await expect(page.getByRole("heading", { name: "Welcome" })).toBeVisible();
+    const passwordInputs = page.locator('input[type="password"]');
+    await passwordInputs.nth(0).fill("a-very-long-master-pass");
+    await passwordInputs.nth(1).fill("a-very-long-master-pass");
+    await page.locator('button[type="submit"]').click();
 
-    await page.getByLabel("Master password").fill("a-very-long-master-pass");
-    await page.getByLabel("Confirm").fill("a-very-long-master-pass");
-    await page.getByRole("button", { name: "Create" }).click();
-
-    await expect(page.locator(".header__title strong")).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByRole("button", { name: "Lock" })).toBeVisible();
+    // Main screen exposes the Lock icon button — selectable by its lock SVG path.
+    await expect(page.locator(".popup__header-actions button").first()).toBeVisible({
+      timeout: 30_000,
+    });
   });
 
-  test("lock then unlock with the master password preserves the fingerprint", async ({
-    context,
-    extensionId,
-  }) => {
+  test("lock then unlock preserves the fingerprint", async ({ context, extensionId }) => {
     const setup = await context.newPage();
     await setup.goto(`chrome-extension://${extensionId}/popup.html`);
-    await setup.getByLabel("Master password").fill("a-very-long-master-pass");
-    await setup.getByLabel("Confirm").fill("a-very-long-master-pass");
-    await setup.getByRole("button", { name: "Create" }).click();
-    await expect(setup.getByRole("button", { name: "Lock" })).toBeVisible({ timeout: 30_000 });
-    const fingerprint = await setup.locator(".fingerprint__value").first().textContent();
-    await setup.getByRole("button", { name: "Lock" }).click();
+    const setupInputs = setup.locator('input[type="password"]');
+    await setupInputs.nth(0).fill("a-very-long-master-pass");
+    await setupInputs.nth(1).fill("a-very-long-master-pass");
+    await setup.locator('button[type="submit"]').click();
+    // Wait for unlocked state — text input becomes visible.
+    await expect(setup.locator(".popup__header-actions button").first()).toBeVisible({
+      timeout: 30_000,
+    });
+
+    const fingerprint = await setup.locator(".fingerprint").first().textContent();
+    expect(fingerprint?.length).toBeGreaterThan(0);
+
+    // Click the lock button — second header action button.
+    const headerButtons = setup.locator(".popup__header-actions button");
+    await headerButtons.last().click();
     await setup.close();
 
     const unlock = await context.newPage();
     await unlock.goto(`chrome-extension://${extensionId}/popup.html`);
-    await expect(unlock.getByRole("heading", { name: "Unlock" })).toBeVisible();
-    await expect(unlock.locator(".fingerprint__value").first()).toHaveText(fingerprint ?? "");
+    await expect(unlock.locator(".fingerprint").first()).toHaveText(fingerprint ?? "", {
+      timeout: 10_000,
+    });
 
-    await unlock.getByLabel("Master password").fill("a-very-long-master-pass");
-    await unlock.getByRole("button", { name: "Unlock" }).click();
-    await expect(unlock.getByRole("button", { name: "Lock" })).toBeVisible({ timeout: 30_000 });
+    await unlock.locator('input[type="password"]').first().fill("a-very-long-master-pass");
+    await unlock.locator('button[type="submit"]').click();
+    await expect(unlock.locator(".popup__header-actions button").first()).toBeVisible({
+      timeout: 30_000,
+    });
   });
 });

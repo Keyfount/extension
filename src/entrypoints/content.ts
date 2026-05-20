@@ -2,12 +2,11 @@
  * Content script entrypoint.
  *
  * Scans the page for password fields, attaches a floating badge to each, and
- * watches for dynamically added fields. Crypto, storage and the master
- * password are all confined to the background service worker; this script
- * is only a thin DOM observer + UI host.
+ * opens the panel automatically when the user focuses the field. Crypto and
+ * the master password stay inside the background service worker.
  */
 import { defineContentScript } from "wxt/utils/define-content-script";
-import { attachBadge, type BadgeController } from "../content/badge.js";
+import { attachBadge, type BadgeController } from "../content/Badge.js";
 import { findPasswordFields } from "../content/detect.js";
 
 export default defineContentScript({
@@ -20,10 +19,19 @@ export default defineContentScript({
 
     const badges = new WeakMap<HTMLInputElement, BadgeController>();
 
+    const openHandler = (event: FocusEvent) => {
+      const target = event.target;
+      if (!(target instanceof HTMLInputElement)) return;
+      const controller = badges.get(target);
+      if (controller !== undefined) controller.open();
+    };
+
     const attach = (field: HTMLInputElement) => {
       if (badges.has(field)) return;
       const controller = attachBadge(field);
       badges.set(field, controller);
+      // Open the badge automatically on focus.
+      field.addEventListener("focus", openHandler);
     };
 
     const scan = () => {

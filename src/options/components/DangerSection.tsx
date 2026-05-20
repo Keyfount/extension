@@ -1,5 +1,6 @@
 import { useState } from "preact/hooks";
 import { send } from "../api.js";
+import { t } from "../../shared/i18n.js";
 
 interface Props {
   onChange: () => Promise<void>;
@@ -21,28 +22,36 @@ export function DangerSection({ onChange }: Props) {
   };
 
   return (
-    <section class="card card--danger">
-      <h2>Forget everything</h2>
-      <p class="muted">
-        Removes the master fingerprint, all site overrides, the PIN blob and the auto-lock
-        configuration. The extension returns to first-run state. Your generated passwords are{" "}
-        <strong>not</strong> stored anywhere — only your <em>memory</em> of the master recovers
-        them.
-      </p>
-      {confirming ? (
-        <div class="field-row">
-          <button type="button" disabled={busy} onClick={wipe}>
-            {busy ? "Wiping…" : "Yes, forget everything"}
-          </button>
-          <button class="button--ghost" type="button" onClick={() => setConfirming(false)}>
-            Cancel
-          </button>
+    <section class="section">
+      <div class="section__header">
+        <div class="row__text">
+          <h2 class="h-section">{t("options_danger_section")}</h2>
+          <span class="row__hint">{t("options_danger_hint")}</span>
         </div>
-      ) : (
-        <button class="button--ghost" type="button" onClick={() => setConfirming(true)}>
-          Reset to first-run
-        </button>
-      )}
+      </div>
+      <div class="section__body">
+        {confirming ? (
+          <div class="actions">
+            <button type="button" class="btn btn--danger" disabled={busy} onClick={wipe}>
+              {busy ? t("options_danger_wiping") : t("options_danger_confirm")}
+            </button>
+            <button class="btn btn--ghost" type="button" onClick={() => setConfirming(false)}>
+              {t("common_cancel")}
+            </button>
+          </div>
+        ) : (
+          <div class="row">
+            <span class="row__title">{t("options_danger_reset")}</span>
+            <button
+              class="btn btn--danger btn--sm"
+              type="button"
+              onClick={() => setConfirming(true)}
+            >
+              {t("options_danger_reset")}
+            </button>
+          </div>
+        )}
+      </div>
     </section>
   );
 }

@@ -1,5 +1,7 @@
 import { useState } from "preact/hooks";
 import { BackgroundError, send } from "../api.js";
+import { IconShield } from "../../shared/icons.js";
+import { t } from "../../shared/i18n.js";
 
 interface Props {
   hasPin: boolean;
@@ -38,61 +40,83 @@ export function PinSection({ hasPin, onChange }: Props) {
   };
 
   return (
-    <section class="card">
-      <h2>PIN unlock</h2>
-      <p class="muted">
-        Lets you unlock with a 4–6 digit PIN instead of your master password. The master is stored
-        on this computer encrypted with the PIN.
-      </p>
-      <div class="warning">
-        <strong>Warning.</strong> Activating the PIN means your master password is written to disk
-        in encrypted form. Anyone with access to this user account and your PIN can derive every
-        password you generate. Cancel if unsure — the default mode never stores anything.
+    <section class="section">
+      <div class="section__header">
+        <div class="row__text">
+          <h2 class="h-section">{t("options_pin_section")}</h2>
+          <span class="row__hint">{t("options_pin_hint")}</span>
+        </div>
       </div>
 
-      {hasPin ? (
-        <div class="field-row">
-          <span class="muted">PIN is set.</span>
-          <button class="button--ghost" type="button" disabled={busy} onClick={disable}>
-            Remove PIN
-          </button>
+      <div class="section__body">
+        <div class="callout">
+          <span style="margin-top: 1px; color: var(--c-warning); flex-shrink: 0;">
+            <IconShield size={16} />
+          </span>
+          <span>{t("options_pin_warning")}</span>
         </div>
-      ) : confirmingEnable ? (
-        <div class="field-row">
-          <label class="field">
-            <span>Choose a PIN</span>
-            <input
-              type="password"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              minLength={4}
-              maxLength={6}
-              value={pin}
-              onInput={(e) => setPin((e.target as HTMLInputElement).value.replace(/\D/g, ""))}
-            />
-          </label>
-          <button type="button" disabled={busy || pin.length < 4} onClick={enable}>
-            {busy ? "Saving…" : "Enable PIN"}
-          </button>
-          <button
-            class="button--ghost"
-            type="button"
-            onClick={() => {
-              setConfirmingEnable(false);
-              setPin("");
-              setError(null);
-            }}
-          >
-            Cancel
-          </button>
-        </div>
-      ) : (
-        <button class="button--ghost" type="button" onClick={() => setConfirmingEnable(true)}>
-          Enable PIN…
-        </button>
-      )}
 
-      {error !== null ? <div class="error">{error}</div> : null}
+        {hasPin ? (
+          <div class="row">
+            <span class="row__title">{t("options_pin_enabled")}</span>
+            <button class="btn btn--danger btn--sm" type="button" disabled={busy} onClick={disable}>
+              {t("options_pin_remove")}
+            </button>
+          </div>
+        ) : confirmingEnable ? (
+          <>
+            <label class="field">
+              <span class="field__label">{t("options_pin_choose")}</span>
+              <input
+                class="input input--mono"
+                type="password"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                minLength={4}
+                maxLength={6}
+                autoFocus
+                value={pin}
+                onInput={(e) => setPin((e.target as HTMLInputElement).value.replace(/\D/g, ""))}
+              />
+            </label>
+            <div class="actions">
+              <button type="button" class="btn" disabled={busy || pin.length < 4} onClick={enable}>
+                {busy ? t("options_pin_saving") : t("options_pin_confirm_enable")}
+              </button>
+              <button
+                class="btn btn--ghost"
+                type="button"
+                onClick={() => {
+                  setConfirmingEnable(false);
+                  setPin("");
+                  setError(null);
+                }}
+              >
+                {t("common_cancel")}
+              </button>
+            </div>
+          </>
+        ) : (
+          <div class="row">
+            <span class="row__title">
+              {t("common_remove")} / {t("options_pin_enable")}
+            </span>
+            <button
+              class="btn btn--ghost btn--sm"
+              type="button"
+              onClick={() => setConfirmingEnable(true)}
+            >
+              {t("options_pin_enable")}
+            </button>
+          </div>
+        )}
+
+        {error !== null ? (
+          <div class="field__error" role="alert">
+            {error}
+          </div>
+        ) : null}
+      </div>
     </section>
   );
 }

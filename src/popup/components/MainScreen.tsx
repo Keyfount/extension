@@ -1,5 +1,15 @@
 import { useCallback, useEffect, useState } from "preact/hooks";
 import { send } from "../api.js";
+import { Header } from "./Header.js";
+import {
+  IconCheck,
+  IconCopy,
+  IconEye,
+  IconEyeOff,
+  IconLock,
+  IconSettings,
+} from "../../shared/icons.js";
+import { t } from "../../shared/i18n.js";
 import {
   activeDomain,
   activeEmail,
@@ -41,9 +51,13 @@ export function MainScreen() {
 
   const copy = useCallback(async () => {
     if (generated.value === null) return;
-    await navigator.clipboard.writeText(generated.value);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    try {
+      await navigator.clipboard.writeText(generated.value);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // swallowed — clipboard API may be unavailable
+    }
   }, []);
 
   const onLock = useCallback(async () => {
@@ -52,70 +66,95 @@ export function MainScreen() {
     screen.value = "unlock";
   }, []);
 
+  const onSettings = useCallback(() => {
+    chrome.runtime.openOptionsPage();
+  }, []);
+
   return (
-    <div class="screen">
-      <header class="header">
-        <div class="header__title">
-          <strong>{activeDomain.value ?? "—"}</strong>
-          {fingerprint.value !== null ? (
-            <span class="fingerprint__value small">{fingerprint.value}</span>
-          ) : null}
-        </div>
-        <div class="actions">
-          <button
-            type="button"
-            class="button--ghost"
-            onClick={() => chrome.runtime.openOptionsPage()}
-            title="Settings"
-          >
-            ⚙
-          </button>
-          <button type="button" class="button--ghost" onClick={onLock}>
-            Lock
-          </button>
-        </div>
-      </header>
+    <div class="popup">
+      <Header
+        subtitle={activeDomain.value ?? undefined}
+        fingerprint={fingerprint.value}
+        actions={
+          <>
+            <button
+              type="button"
+              class="btn btn--quiet btn--icon"
+              onClick={onSettings}
+              aria-label={t("common_settings")}
+            >
+              <IconSettings />
+            </button>
+            <button
+              type="button"
+              class="btn btn--quiet btn--icon"
+              onClick={onLock}
+              aria-label={t("common_lock")}
+            >
+              <IconLock />
+            </button>
+          </>
+        }
+      />
 
       {activeDomain.value === null ? (
-        <p class="muted">
-          This tab is not a regular web page. Open a site (https://…) to generate a password for it.
-        </p>
+        <p class="popup__intro">{t("main_no_site")}</p>
       ) : (
         <>
           <label class="field">
-            <span>Email or username</span>
+            <span class="field__label">{t("main_username_label")}</span>
             <input
+              class="input"
               type="text"
               value={activeEmail.value}
               autocomplete="off"
-              placeholder="you@example.com"
+              placeholder={t("main_username_placeholder")}
               onInput={(e) => {
                 activeEmail.value = (e.target as HTMLInputElement).value;
               }}
             />
           </label>
 
-          <button type="button" onClick={generate} disabled={busy.value || !canGenerate.value}>
-            {busy.value ? "Generating…" : "Generate"}
+          <button
+            type="button"
+            class="btn"
+            onClick={generate}
+            disabled={busy.value || !canGenerate.value}
+          >
+            {busy.value ? t("common_generating") : t("common_generate")}
           </button>
 
           {generated.value !== null ? (
             <div class="generated">
-              <code class={revealed ? "generated__value" : "generated__value masked"}>
+              <code
+                class={revealed ? "generated__value" : "generated__value generated__value--masked"}
+              >
                 {revealed ? generated.value : "•".repeat(Math.min(generated.value.length, 24))}
               </code>
               <div class="generated__actions">
-                <button type="button" class="button--ghost" onClick={() => setRevealed((v) => !v)}>
-                  {revealed ? "Hide" : "Reveal"}
+                <button
+                  type="button"
+                  class="btn btn--ghost btn--sm"
+                  onClick={() => setRevealed((v) => !v)}
+                >
+                  {revealed ? <IconEyeOff size={14} /> : <IconEye size={14} />}
+                  {revealed ? t("common_hide") : t("common_reveal")}
                 </button>
-                <button type="button" class="button--ghost" onClick={copy}>
-                  {copied ? "Copied" : "Copy"}
+                <button type="button" class="btn btn--ghost btn--sm" onClick={copy}>
+                  {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+                  {copied ? t("common_copied") : t("common_copy")}
                 </button>
               </div>
             </div>
+          ) : !canGenerate.value ? (
+            <p class="field__hint">{t("main_no_email")}</p>
           ) : null}
 
-          {errorMessage.value !== null ? <div class="error">{errorMessage.value}</div> : null}
+          {errorMessage.value !== null ? (
+            <div class="field__error" role="alert">
+              {errorMessage.value}
+            </div>
+          ) : null}
         </>
       )}
     </div>

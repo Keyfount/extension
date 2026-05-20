@@ -8,10 +8,13 @@ test("badge is injected next to password fields on a real http origin", async ({
   // Set up the extension first so the badge has a fingerprint to work with.
   const popup = await context.newPage();
   await popup.goto(`chrome-extension://${extensionId}/popup.html`);
-  await popup.getByLabel("Master password").fill("a-very-long-master-pass");
-  await popup.getByLabel("Confirm").fill("a-very-long-master-pass");
-  await popup.getByRole("button", { name: "Create" }).click();
-  await expect(popup.getByRole("button", { name: "Lock" })).toBeVisible({ timeout: 30_000 });
+  const inputs = popup.locator('input[type="password"]');
+  await inputs.nth(0).fill("a-very-long-master-pass");
+  await inputs.nth(1).fill("a-very-long-master-pass");
+  await popup.locator('button[type="submit"]').click();
+  await expect(popup.locator(".popup__header-actions button").first()).toBeVisible({
+    timeout: 30_000,
+  });
   await popup.close();
 
   const tab = await context.newPage();

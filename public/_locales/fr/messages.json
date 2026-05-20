@@ -1,0 +1,142 @@
+{
+  "extName": { "message": "ItsMyPassword" },
+  "extDescription": {
+    "message": "Gestionnaire de mots de passe déterministe. Pas de coffre, pas de sync — juste un algorithme."
+  },
+
+  "common_unlock": { "message": "Déverrouiller" },
+  "common_lock": { "message": "Verrouiller" },
+  "common_cancel": { "message": "Annuler" },
+  "common_save": { "message": "Enregistrer" },
+  "common_settings": { "message": "Paramètres" },
+  "common_create": { "message": "Créer" },
+  "common_back": { "message": "Retour" },
+  "common_close": { "message": "Fermer" },
+  "common_copy": { "message": "Copier" },
+  "common_copied": { "message": "Copié" },
+  "common_fill": { "message": "Remplir" },
+  "common_reveal": { "message": "Afficher" },
+  "common_hide": { "message": "Masquer" },
+  "common_loading": { "message": "Chargement" },
+  "common_working": { "message": "Travail en cours" },
+  "common_generate": { "message": "Générer" },
+  "common_generating": { "message": "Génération…" },
+  "common_edit": { "message": "Modifier" },
+  "common_delete": { "message": "Supprimer" },
+  "common_remove": { "message": "Retirer" },
+
+  "setup_welcome": { "message": "Bienvenue" },
+  "setup_intro": {
+    "message": "ItsMyPassword ne stocke aucun mot de passe — il les recalcule à chaque fois depuis votre mot de passe maître. Choisissez-en un que vous pouvez retenir. Nous ne pouvons pas le récupérer."
+  },
+  "setup_master_label": { "message": "Mot de passe maître" },
+  "setup_confirm_label": { "message": "Confirmation" },
+  "setup_create_button": { "message": "Créer mon empreinte" },
+  "setup_creating": { "message": "Création…" },
+  "setup_min_length_error": {
+    "message": "Le mot de passe maître doit faire au moins $LEN$ caractères",
+    "placeholders": { "len": { "content": "$1" } }
+  },
+  "setup_mismatch_error": { "message": "Les mots de passe ne correspondent pas" },
+  "setup_fingerprint_hint": {
+    "message": "Retenez ces trois symboles — ils s'afficheront à chaque déverrouillage."
+  },
+
+  "unlock_title": { "message": "Content de vous revoir" },
+  "unlock_master_tab": { "message": "Mot de passe maître" },
+  "unlock_pin_tab": { "message": "Code PIN" },
+  "unlock_pin_label": { "message": "Code PIN" },
+  "unlock_expected_label": { "message": "Empreinte attendue" },
+  "unlock_typed_label": { "message": "Empreinte saisie" },
+  "unlock_mismatch_hint": {
+    "message": "Les empreintes ne correspondent pas — vérifiez votre mot de passe maître."
+  },
+  "unlock_unlocking": { "message": "Déverrouillage…" },
+  "unlock_incorrect": { "message": "Mot de passe maître incorrect" },
+  "unlock_incorrect_pin": { "message": "Code PIN incorrect" },
+
+  "main_username_label": { "message": "Email ou nom d'utilisateur" },
+  "main_username_placeholder": { "message": "vous@exemple.com" },
+  "main_no_site": {
+    "message": "Ouvrez un site (https://…) pour générer un mot de passe."
+  },
+  "main_no_email": {
+    "message": "Saisissez votre email ci-dessus, puis cliquez sur Générer."
+  },
+
+  "options_title": { "message": "Paramètres" },
+  "options_subtitle": {
+    "message": "Tout reste sur cet appareil. Nous ne stockons jamais les mots de passe générés."
+  },
+  "options_language_section": { "message": "Langue" },
+  "options_default_section": { "message": "Profil par défaut" },
+  "options_default_hint": {
+    "message": "Utilisé sur les sites sans paramétrage spécifique."
+  },
+  "options_autolock_section": { "message": "Verrouillage automatique" },
+  "options_autolock_hint": {
+    "message": "Le maître est effacé de la mémoire après ce nombre de minutes. Mettez 0 pour désactiver."
+  },
+  "options_autolock_label": { "message": "Minutes" },
+  "options_pin_section": { "message": "Déverrouillage par PIN" },
+  "options_pin_hint": {
+    "message": "Déverrouillez avec un code de 4 à 6 chiffres au lieu du mot de passe maître complet."
+  },
+  "options_pin_warning": {
+    "message": "Activer le PIN stocke votre mot de passe maître sur cet appareil, chiffré avec le PIN. Quiconque a accès à votre session et à votre PIN peut dériver tous vos mots de passe. Annulez si vous hésitez."
+  },
+  "options_pin_enabled": { "message": "Le PIN est actif" },
+  "options_pin_enable": { "message": "Activer le PIN…" },
+  "options_pin_remove": { "message": "Retirer le PIN" },
+  "options_pin_choose": { "message": "Choisir un PIN" },
+  "options_pin_confirm_enable": { "message": "Activer le PIN" },
+  "options_pin_saving": { "message": "Enregistrement…" },
+  "options_sites_section": { "message": "Réglages par site" },
+  "options_sites_empty": {
+    "message": "Aucun réglage spécifique. Les sites que vous personnalisez depuis le popup apparaîtront ici."
+  },
+  "options_sites_import": { "message": "Importer" },
+  "options_sites_export": { "message": "Exporter" },
+  "options_danger_section": { "message": "Réinitialisation" },
+  "options_danger_hint": {
+    "message": "Supprime l'empreinte du maître, tous les réglages par site, le PIN et la configuration du verrouillage. Vos mots de passe dérivés ne sont stockés nulle part — seule votre mémoire du maître les retrouve."
+  },
+  "options_danger_reset": { "message": "Réinitialiser" },
+  "options_danger_confirm": { "message": "Oui, tout effacer" },
+  "options_danger_wiping": { "message": "Suppression…" },
+
+  "profile_mode_random": { "message": "Caractères aléatoires" },
+  "profile_mode_memorable": { "message": "Phrase mémorisable" },
+  "profile_length_label": { "message": "Longueur" },
+  "profile_words_label": { "message": "Mots" },
+  "profile_classes_label": { "message": "Classes de caractères" },
+  "profile_separator_label": { "message": "Séparateur" },
+  "profile_capitalise_label": { "message": "Capitaliser un mot" },
+  "profile_suffix_label": { "message": "Ajouter un chiffre et un symbole" },
+  "profile_counter_label": { "message": "Compteur" },
+  "profile_counter_hint": {
+    "message": "Incrémentez le compteur pour faire tourner un mot de passe compromis sans changer votre maître."
+  },
+  "profile_class_lower": { "message": "Minuscules" },
+  "profile_class_upper": { "message": "Majuscules" },
+  "profile_class_digits": { "message": "Chiffres" },
+  "profile_class_symbols": { "message": "Symboles" },
+
+  "badge_ready_for": {
+    "message": "Prêt pour $DOMAIN$",
+    "placeholders": { "domain": { "content": "$1" } }
+  },
+  "badge_locked": {
+    "message": "Verrouillé — cliquez sur l'icône de l'extension pour déverrouiller."
+  },
+  "badge_first_run": {
+    "message": "Ouvrez l'extension pour créer votre mot de passe maître."
+  },
+  "badge_no_domain": { "message": "Cette page n'est pas un site web standard." },
+  "badge_no_email": {
+    "message": "Saisissez votre email dans le formulaire, ensuite je pourrai générer."
+  },
+  "badge_failed": { "message": "Impossible de générer un mot de passe." },
+  "badge_no_clipboard": { "message": "Impossible d'accéder au presse-papier." },
+  "badge_customize": { "message": "Personnaliser" }
+}
