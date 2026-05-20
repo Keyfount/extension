@@ -11,14 +11,14 @@ We use a **trunk-based** workflow.
 
 **Branch naming:**
 
-| Prefix | Purpose |
-|---|---|
-| `feat/<slug>` | New feature |
-| `fix/<slug>` | Bug fix |
-| `chore/<slug>` | Tooling, config, deps |
-| `docs/<slug>` | Documentation only |
+| Prefix            | Purpose                                |
+| ----------------- | -------------------------------------- |
+| `feat/<slug>`     | New feature                            |
+| `fix/<slug>`      | Bug fix                                |
+| `chore/<slug>`    | Tooling, config, deps                  |
+| `docs/<slug>`     | Documentation only                     |
 | `refactor/<slug>` | Internal refactor, no behaviour change |
-| `test/<slug>` | Tests only |
+| `test/<slug>`     | Tests only                             |
 
 Example: `feat/memorable-password-mode`
 
