@@ -19,6 +19,10 @@ export default defineConfig({
         "src/background/crypto/wordlist.ts",
         "src/entrypoints/**",
         "src/popup/**",
+        // badge.ts and messaging.ts are exercised via E2E (Playwright) in M5;
+        // their DOM-mutation side effects don't lend themselves to unit tests.
+        "src/content/badge.ts",
+        "src/content/messaging.ts",
       ],
       thresholds: {
         statements: 90,
