@@ -31,7 +31,10 @@ export const test = base.extend<ExtensionFixture>({
         `--disable-extensions-except=${EXTENSION_PATH}`,
         `--load-extension=${EXTENSION_PATH}`,
         "--no-first-run",
+        // Force English UI so tests can rely on English message strings.
+        "--lang=en-US",
       ],
+      locale: "en-US",
     });
     await use(context);
     await context.close();

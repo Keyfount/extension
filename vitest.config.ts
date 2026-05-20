@@ -21,9 +21,8 @@ export default defineConfig({
         "src/entrypoints/**",
         "src/popup/**",
         "src/options/**",
-        // badge.ts and messaging.ts are exercised via E2E (Playwright) in M5;
+        // Badge and messaging are exercised via E2E (Playwright);
         // their DOM-mutation side effects don't lend themselves to unit tests.
-        "src/content/badge.ts",
         "src/content/messaging.ts",
       ],
       thresholds: {
