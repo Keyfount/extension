@@ -142,3 +142,70 @@ describe("router — fingerprint, profiles, state and wipe", () => {
     expect(res.ok).toBe(false);
   });
 }, 60_000);
+
+describe("router — defaults, profile delete, auto-lock", () => {
+  it("updates the default profile", async () => {
+    await handleRequest({ kind: "setup", master: "super-long-master" });
+    const longer = { ...DEFAULT_RANDOM_PROFILE, length: 24 } as const;
+    await handleRequest({ kind: "setDefaultProfile", profile: longer });
+    const state = await handleRequest({ kind: "getState" });
+    if (state.ok === false) throw new Error(state.error);
+    if (!("defaultProfile" in state)) throw new Error("unexpected shape");
+    expect(state.defaultProfile).toEqual(longer);
+  });
+
+  it("deletes a site override", async () => {
+    await handleRequest({ kind: "setup", master: "super-long-master" });
+    await handleRequest({
+      kind: "setProfile",
+      domain: "example.com",
+      profile: DEFAULT_RANDOM_PROFILE,
+    });
+    await handleRequest({ kind: "deleteProfile", domain: "example.com" });
+    const profile = await handleRequest({ kind: "getProfile", domain: "example.com" });
+    if (profile.ok === false) throw new Error(profile.error);
+    if (!("isOverride" in profile)) throw new Error("unexpected shape");
+    expect(profile.isOverride).toBe(false);
+  });
+
+  it("validates the auto-lock minutes range", async () => {
+    expect((await handleRequest({ kind: "setAutoLockMinutes", minutes: -1 })).ok).toBe(false);
+    expect((await handleRequest({ kind: "setAutoLockMinutes", minutes: 99999 })).ok).toBe(false);
+    expect((await handleRequest({ kind: "setAutoLockMinutes", minutes: 30 })).ok).toBe(true);
+  });
+}, 60_000);
+
+describe("router — PIN mode", () => {
+  it("rejects setPin while locked", async () => {
+    const res = await handleRequest({ kind: "setPin", pin: "1234" });
+    expect(res.ok).toBe(false);
+  });
+
+  it("rejects badly-formed PINs", async () => {
+    await handleRequest({ kind: "setup", master: "super-long-master" });
+    expect((await handleRequest({ kind: "setPin", pin: "abc" })).ok).toBe(false);
+    expect((await handleRequest({ kind: "setPin", pin: "123" })).ok).toBe(false);
+  });
+
+  it("sets, unlocks-with and removes a PIN", async () => {
+    await handleRequest({ kind: "setup", master: "super-long-master" });
+
+    const set = await handleRequest({ kind: "setPin", pin: "1234" });
+    expect(set.ok).toBe(true);
+
+    await handleRequest({ kind: "lock" });
+    const wrong = await handleRequest({ kind: "unlockWithPin", pin: "9999" });
+    expect(wrong.ok).toBe(false);
+
+    const right = await handleRequest({ kind: "unlockWithPin", pin: "1234" });
+    expect(right.ok).toBe(true);
+
+    const removed = await handleRequest({ kind: "removePin" });
+    expect(removed.ok).toBe(true);
+
+    const state = await handleRequest({ kind: "getState" });
+    if (state.ok === false) throw new Error(state.error);
+    if (!("hasPin" in state)) throw new Error("unexpected shape");
+    expect(state.hasPin).toBe(false);
+  });
+}, 120_000);

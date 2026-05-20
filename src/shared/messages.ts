@@ -11,36 +11,36 @@ import type { Profile } from "./types.js";
 export type Request =
   | { kind: "status" }
   | { kind: "unlock"; master: string }
+  | { kind: "unlockWithPin"; pin: string }
   | { kind: "lock" }
   | { kind: "setup"; master: string; defaultProfile?: Profile }
   | { kind: "fingerprint"; master: string }
   | { kind: "generate"; domain: string; email: string; profile?: Profile }
   | { kind: "getProfile"; domain: string }
   | { kind: "setProfile"; domain: string; profile: Profile }
+  | { kind: "deleteProfile"; domain: string }
+  | { kind: "setDefaultProfile"; profile: Profile }
+  | { kind: "setAutoLockMinutes"; minutes: number }
+  | { kind: "setPin"; pin: string }
+  | { kind: "removePin" }
   | { kind: "getState" }
   | { kind: "wipe" };
 
+// All responses share the same shape on success; we use a small set of
+// payload types and let TS pick the right one via the discriminator.
 export type Response<T extends Request> = T extends { kind: "status" }
   ? StatusResponse
-  : T extends { kind: "unlock" }
+  : T extends { kind: "unlock" | "unlockWithPin" | "setup" }
     ? UnlockResponse
-    : T extends { kind: "lock" }
-      ? OkResponse
-      : T extends { kind: "setup" }
-        ? UnlockResponse
-        : T extends { kind: "fingerprint" }
-          ? FingerprintResponse
-          : T extends { kind: "generate" }
-            ? GenerateResponse
-            : T extends { kind: "getProfile" }
-              ? GetProfileResponse
-              : T extends { kind: "setProfile" }
-                ? OkResponse
-                : T extends { kind: "getState" }
-                  ? GetStateResponse
-                  : T extends { kind: "wipe" }
-                    ? OkResponse
-                    : never;
+    : T extends { kind: "fingerprint" }
+      ? FingerprintResponse
+      : T extends { kind: "generate" }
+        ? GenerateResponse
+        : T extends { kind: "getProfile" }
+          ? GetProfileResponse
+          : T extends { kind: "getState" }
+            ? GetStateResponse
+            : OkResponse;
 
 export interface OkResponse {
   ok: true;

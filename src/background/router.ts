@@ -4,7 +4,13 @@
  * Pure logic, no side effects at import time. The entrypoint module wires
  * `handleRequest` into `chrome.runtime.onMessage`.
  */
-import { derivePassword, fingerprintMaster, formatFingerprint } from "./crypto/index.js";
+import {
+  decryptMaster,
+  derivePassword,
+  encryptMaster,
+  fingerprintMaster,
+  formatFingerprint,
+} from "./crypto/index.js";
 import { effectiveProfile, loadState, updateState, wipeAll, type StoredState } from "./storage.js";
 import { lock, readMaster, status as sessionStatus, unlock } from "./session.js";
 import type {
@@ -39,6 +45,8 @@ export async function handleRequest(request: Request): Promise<AnyResponse> {
         return await handleSetup(request.master, request.defaultProfile);
       case "unlock":
         return await handleUnlock(request.master);
+      case "unlockWithPin":
+        return await handleUnlockWithPin(request.pin);
       case "lock":
         await lock();
         return { ok: true };
@@ -50,6 +58,31 @@ export async function handleRequest(request: Request): Promise<AnyResponse> {
         return await handleGetProfile(request.domain);
       case "setProfile":
         await handleSetProfile(request.domain, request.profile);
+        return { ok: true };
+      case "deleteProfile":
+        await handleDeleteProfile(request.domain);
+        return { ok: true };
+      case "setDefaultProfile":
+        await updateState((s) => ({ ...s, defaultProfile: request.profile }));
+        return { ok: true };
+      case "setAutoLockMinutes":
+        if (
+          !Number.isInteger(request.minutes) ||
+          request.minutes < 0 ||
+          request.minutes > 24 * 60
+        ) {
+          return { ok: false, error: "autoLockMinutes must be an integer between 0 and 1440" };
+        }
+        await updateState((s) => ({ ...s, autoLockMinutes: request.minutes }));
+        return { ok: true };
+      case "setPin":
+        return await handleSetPin(request.pin);
+      case "removePin":
+        await updateState((s) => {
+          const next = { ...s };
+          delete next.pin;
+          return next;
+        });
         return { ok: true };
       case "getState":
         return await handleGetState();
@@ -146,6 +179,40 @@ async function handleSetProfile(domain: string, profile: Profile): Promise<void>
     ...state,
     sites: { ...state.sites, [domain]: profile },
   }));
+}
+
+async function handleDeleteProfile(domain: string): Promise<void> {
+  await updateState((state) => {
+    const sites = { ...state.sites };
+    delete sites[domain];
+    return { ...state, sites };
+  });
+}
+
+async function handleUnlockWithPin(pin: string): Promise<UnlockResponse | ErrorResponse> {
+  const state = await loadState();
+  if (state.pin === undefined || state.fingerprint === undefined) {
+    return { ok: false, error: "PIN mode is not enabled" };
+  }
+  const master = await decryptMaster(state.pin, pin);
+  if (master === null) {
+    return { ok: false, error: "incorrect PIN" };
+  }
+  await unlock(master, state.autoLockMinutes);
+  return { ok: true, fingerprint: state.fingerprint };
+}
+
+async function handleSetPin(pin: string): Promise<OkResponse | ErrorResponse> {
+  if (!/^\d{4,6}$/.test(pin)) {
+    return { ok: false, error: "PIN must be 4 to 6 digits" };
+  }
+  const master = await readMaster();
+  if (master === null) {
+    return { ok: false, error: "session must be unlocked to set a PIN" };
+  }
+  const blob = await encryptMaster(master, pin);
+  await updateState((s) => ({ ...s, pin: blob }));
+  return { ok: true };
 }
 
 async function handleGetState(): Promise<GetStateResponse> {

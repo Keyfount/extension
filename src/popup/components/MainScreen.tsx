@@ -61,9 +61,19 @@ export function MainScreen() {
             <span class="fingerprint__value small">{fingerprint.value}</span>
           ) : null}
         </div>
-        <button type="button" class="button--ghost" onClick={onLock}>
-          Lock
-        </button>
+        <div class="actions">
+          <button
+            type="button"
+            class="button--ghost"
+            onClick={() => chrome.runtime.openOptionsPage()}
+            title="Settings"
+          >
+            ⚙
+          </button>
+          <button type="button" class="button--ghost" onClick={onLock}>
+            Lock
+          </button>
+        </div>
       </header>
 
       {activeDomain.value === null ? (

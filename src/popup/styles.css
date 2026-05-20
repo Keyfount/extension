@@ -96,6 +96,16 @@ h1 {
   white-space: nowrap;
 }
 
+.actions {
+  display: flex;
+  gap: 8px;
+}
+.field-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .field {
   display: flex;
   flex-direction: column;

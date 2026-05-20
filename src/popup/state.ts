@@ -31,6 +31,9 @@ export const busy = signal<boolean>(false);
 /** Last error to surface in the UI. Cleared when the user takes any action. */
 export const errorMessage = signal<string | null>(null);
 
+/** Whether the user has enabled PIN unlock. */
+export const hasPin = signal<boolean>(false);
+
 export const canGenerate = computed(
   () => activeDomain.value !== null && activeEmail.value.trim().length > 0,
 );
