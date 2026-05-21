@@ -28,11 +28,21 @@ export function AccountDetailScreen() {
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState<"password" | "username" | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const [rotated, setRotated] = useState(false);
   const [previewPassword, setPreviewPassword] = useState<string | null>(null);
   const [previewRevealed, setPreviewRevealed] = useState(false);
   const [previewCopied, setPreviewCopied] = useState(false);
   const [postRenameToast, setPostRenameToast] = useState<string | null>(null);
+  // Rotation flow: an inline panel that previews both the current and
+  // the bumped-counter password so the user can copy the values that
+  // most "change password" forms demand (current + new ×2). Persistence
+  // is gated behind an explicit Confirm.
+  const [rotatePreview, setRotatePreview] = useState<{
+    oldPassword: string;
+    newPassword: string;
+  } | null>(null);
+  const [rotateOldRevealed, setRotateOldRevealed] = useState(false);
+  const [rotateNewRevealed, setRotateNewRevealed] = useState(false);
+  const [rotateCopied, setRotateCopied] = useState<"old" | "new" | null>(null);
 
   // Recompute password whenever the entry's profile changes (initial mount
   // + every profile mutation below).
@@ -247,7 +257,44 @@ export function AccountDetailScreen() {
     }
   };
 
-  const rotateCounter = async () => {
+  /**
+   * Open the rotation preview: compute the current password (with the
+   * stored counter) and the would-be new password (counter + 1). Both
+   * are surfaced as copy/reveal pills; nothing is persisted yet.
+   */
+  const startRotation = async () => {
+    const bumped: Profile = {
+      ...entry.profile,
+      counter: (entry.profile.counter ?? 1) + 1,
+    };
+    try {
+      const [oldRes, newRes] = await Promise.all([
+        send({
+          kind: "generate",
+          domain: entry.domain,
+          email: entry.username,
+          profile: entry.profile,
+        }),
+        send({
+          kind: "generate",
+          domain: entry.domain,
+          email: entry.username,
+          profile: bumped,
+        }),
+      ]);
+      setRotatePreview({ oldPassword: oldRes.password, newPassword: newRes.password });
+      setRotateOldRevealed(false);
+      setRotateNewRevealed(false);
+    } catch {
+      /* swallowed */
+    }
+  };
+
+  /**
+   * Commit the rotation: persist counter + 1, refresh the in-memory list
+   * and the displayed entry, then collapse the preview panel.
+   */
+  const confirmRotation = async () => {
     const bumped: Profile = {
       ...entry.profile,
       counter: (entry.profile.counter ?? 1) + 1,
@@ -264,11 +311,18 @@ export function AccountDetailScreen() {
         e.domain === entry.domain && e.username === entry.username ? updated : e,
       );
       selectedAccount.value = updated;
-      setRotated(true);
-      setTimeout(() => setRotated(false), 2500);
     } catch {
       /* swallowed */
     }
+    setRotatePreview(null);
+  };
+
+  const copyRotation = async (which: "old" | "new") => {
+    if (rotatePreview === null) return;
+    const value = which === "old" ? rotatePreview.oldPassword : rotatePreview.newPassword;
+    await copyWithAutoClear(value);
+    setRotateCopied(which);
+    setTimeout(() => setRotateCopied(null), 1500);
   };
 
   const remove = async () => {
@@ -476,22 +530,119 @@ export function AccountDetailScreen() {
           </span>
         </div>
         <div class="card p-4">
-          <ProfileEditor profile={entry.profile} onChange={updateProfile} compact />
+          <ProfileEditor profile={entry.profile} onChange={updateProfile} />
         </div>
       </motion.section>
 
       <div class="flex flex-col gap-2 pt-1">
         <h2 class="m-0 text-sm font-semibold tracking-[-0.01em]">{t("detail_rotate_section")}</h2>
         <span class="text-xs text-(--color-ink-muted) leading-snug">{t("detail_rotate_hint")}</span>
-        <motion.button
-          type="button"
-          class="btn btn-ghost self-start"
-          whileTap={TAP_SCALE}
-          onClick={() => void rotateCounter()}
-        >
-          {rotated ? <IconCheck size={14} /> : null}
-          {rotated ? t("detail_rotate_done") : t("detail_rotate_cta")}
-        </motion.button>
+        {rotatePreview === null ? (
+          <motion.button
+            type="button"
+            class="btn btn-ghost self-start"
+            whileTap={TAP_SCALE}
+            onClick={() => void startRotation()}
+          >
+            {t("detail_rotate_cta")}
+          </motion.button>
+        ) : (
+          <motion.div
+            class="flex flex-col gap-3 p-3 rounded-2xl bg-(--color-surface-sunken) border border-(--color-line)"
+            variants={POP_IN}
+            initial="initial"
+            animate="animate"
+          >
+            <div class="flex flex-col gap-2">
+              <span class="field-label">{t("detail_rotate_old_label")}</span>
+              <code
+                class={
+                  rotateOldRevealed
+                    ? "font-mono text-sm break-all select-all text-(--color-ink)"
+                    : "font-mono text-sm break-all select-all text-(--color-ink-muted) tracking-[0.15em]"
+                }
+              >
+                {rotateOldRevealed
+                  ? rotatePreview.oldPassword
+                  : "•".repeat(Math.min(rotatePreview.oldPassword.length, 24))}
+              </code>
+              <div class="flex gap-2">
+                <motion.button
+                  type="button"
+                  class="btn btn-ghost btn-sm flex-1"
+                  whileTap={TAP_SCALE}
+                  onClick={() => setRotateOldRevealed((v) => !v)}
+                >
+                  {rotateOldRevealed ? <IconEyeOff size={14} /> : <IconEye size={14} />}
+                  {rotateOldRevealed ? t("common_hide") : t("common_reveal")}
+                </motion.button>
+                <motion.button
+                  type="button"
+                  class="btn btn-ghost btn-sm flex-1"
+                  whileTap={TAP_SCALE}
+                  onClick={() => void copyRotation("old")}
+                >
+                  {rotateCopied === "old" ? <IconCheck size={14} /> : <IconCopy size={14} />}
+                  {rotateCopied === "old" ? t("common_copied") : t("common_copy")}
+                </motion.button>
+              </div>
+            </div>
+
+            <div class="flex flex-col gap-2">
+              <span class="field-label">{t("detail_rotate_new_label")}</span>
+              <code
+                class={
+                  rotateNewRevealed
+                    ? "font-mono text-sm break-all select-all text-(--color-ink)"
+                    : "font-mono text-sm break-all select-all text-(--color-ink-muted) tracking-[0.15em]"
+                }
+              >
+                {rotateNewRevealed
+                  ? rotatePreview.newPassword
+                  : "•".repeat(Math.min(rotatePreview.newPassword.length, 24))}
+              </code>
+              <div class="flex gap-2">
+                <motion.button
+                  type="button"
+                  class="btn btn-ghost btn-sm flex-1"
+                  whileTap={TAP_SCALE}
+                  onClick={() => setRotateNewRevealed((v) => !v)}
+                >
+                  {rotateNewRevealed ? <IconEyeOff size={14} /> : <IconEye size={14} />}
+                  {rotateNewRevealed ? t("common_hide") : t("common_reveal")}
+                </motion.button>
+                <motion.button
+                  type="button"
+                  class="btn btn-ghost btn-sm flex-1"
+                  whileTap={TAP_SCALE}
+                  onClick={() => void copyRotation("new")}
+                >
+                  {rotateCopied === "new" ? <IconCheck size={14} /> : <IconCopy size={14} />}
+                  {rotateCopied === "new" ? t("common_copied") : t("common_copy")}
+                </motion.button>
+              </div>
+            </div>
+
+            <div class="flex gap-2 pt-1">
+              <motion.button
+                type="button"
+                class="btn flex-1"
+                whileTap={TAP_SCALE}
+                onClick={() => void confirmRotation()}
+              >
+                {t("detail_rotate_confirm")}
+              </motion.button>
+              <motion.button
+                type="button"
+                class="btn btn-ghost flex-1"
+                whileTap={TAP_SCALE}
+                onClick={() => setRotatePreview(null)}
+              >
+                {t("common_cancel")}
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
       </div>
 
       <div class="flex flex-col gap-2 pt-2">

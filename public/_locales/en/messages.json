@@ -221,8 +221,10 @@
   "detail_rotate_hint": {
     "message": "Bumps the counter and recomputes a fresh password for this account. Use this when a site forces a change or you suspect a leak."
   },
-  "detail_rotate_cta": { "message": "Rotate password" },
-  "detail_rotate_done": { "message": "Rotated" },
+  "detail_rotate_cta": { "message": "Rotate the password" },
+  "detail_rotate_old_label": { "message": "Current password" },
+  "detail_rotate_new_label": { "message": "New password" },
+  "detail_rotate_confirm": { "message": "Save the rotation" },
 
   "detail_rename_warning_title": { "message": "Renaming changes the password" },
   "detail_rename_warning_body": {
