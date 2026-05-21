@@ -44,6 +44,15 @@ If you enable PIN mode in the settings, your master password is encrypted with A
 
 The full source code is available at <https://github.com/ItsMyPassword/extension> under the MIT licence. Anyone can audit the algorithm and verify that the bundle does no network I/O.
 
+## Optional: saved accounts
+
+When you enable "Saved accounts" (off by default), the extension keeps an
+encrypted list of `(site, username)` pairs you create through the badge —
+**never** the password, which always recomputes from your master. The list
+is AES-GCM encrypted under a PBKDF2-derived key from your master password
+and lives in `chrome.storage.local` only. Disabling the feature wipes the
+list immediately.
+
 ## Contact
 
 Open an issue at <https://github.com/ItsMyPassword/extension/issues>. For security reports, see [SECURITY.md](../SECURITY.md).
