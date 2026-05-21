@@ -38,7 +38,7 @@ describe("loadState", () => {
     expect(state.historyEnabled).toBe(false);
   });
 
-  it("migrates v1 state to v2 by adding historyEnabled=false", async () => {
+  it("migrates v1 state to current by filling defaults", async () => {
     await chrome.storage.local.set({
       "state.v1": {
         schemaVersion: 1,
@@ -50,6 +50,23 @@ describe("loadState", () => {
     const state = await loadState();
     expect(state.schemaVersion).toBe(SCHEMA_VERSION);
     expect(state.historyEnabled).toBe(false);
+    expect(state.faviconFallbackEnabled).toBe(true);
+  });
+
+  it("migrates v2 state to v3 by enabling the favicon fallback by default", async () => {
+    await chrome.storage.local.set({
+      "state.v1": {
+        schemaVersion: 2,
+        defaultProfile: DEFAULT_RANDOM_PROFILE,
+        autoLockMinutes: 15,
+        historyEnabled: true,
+        sites: {},
+      },
+    });
+    const state = await loadState();
+    expect(state.schemaVersion).toBe(SCHEMA_VERSION);
+    expect(state.historyEnabled).toBe(true);
+    expect(state.faviconFallbackEnabled).toBe(true);
   });
 });
 
@@ -60,6 +77,7 @@ describe("saveState / updateState", () => {
       defaultProfile: DEFAULT_RANDOM_PROFILE,
       autoLockMinutes: 30,
       historyEnabled: false,
+      faviconFallbackEnabled: true,
       fingerprint: "abc",
       sites: { "example.com": DEFAULT_RANDOM_PROFILE },
     });
@@ -97,6 +115,7 @@ describe("wipeAll", () => {
       defaultProfile: DEFAULT_RANDOM_PROFILE,
       autoLockMinutes: 15,
       historyEnabled: false,
+      faviconFallbackEnabled: true,
       fingerprint: "x",
       sites: {},
     });

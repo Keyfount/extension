@@ -3,11 +3,16 @@
  * registered with through the extension.
  *
  * The serialised JSON list is AES-GCM-encrypted under a PBKDF2-derived key
- * from the master password (mirroring the PIN-blob recipe). Only the
- * service worker can read it: the master never leaves the background.
+ * from the master password (mirroring the PIN-blob recipe). Each entry now
+ * carries its own generation profile so a saved account always recomputes
+ * with the same parameters even when the per-site default later changes.
+ *
+ * Entries persisted before the profile field was introduced are
+ * back-filled lazily at read time using a caller-provided fallback (the
+ * site's effective profile at the time of read).
  */
 import { deriveAesGcmKey } from "./crypto/index.js";
-import type { AccountEntry } from "../shared/types.js";
+import { DEFAULT_RANDOM_PROFILE, type AccountEntry, type Profile } from "../shared/types.js";
 
 const STORAGE_KEY = "accountsCipher";
 const ITERATIONS = 200_000;
@@ -21,9 +26,20 @@ interface CipherBlob {
   iterations: number;
 }
 
-export async function listAccounts(master: string, domain?: string): Promise<AccountEntry[]> {
-  const all = await readAll(master);
-  const filtered = domain === undefined ? all : all.filter((e) => e.domain === domain);
+export type ProfileFallback = (domain: string) => Profile;
+
+/**
+ * Read every entry. The `fallback` is called for legacy entries that
+ * predate the per-account profile field; the entry is backfilled in place
+ * and the blob re-encrypted so the next read is cheap.
+ */
+export async function listAccounts(
+  master: string,
+  domain: string | undefined,
+  fallback: ProfileFallback,
+): Promise<AccountEntry[]> {
+  const { entries } = await readAll(master, fallback);
+  const filtered = domain === undefined ? entries : entries.filter((e) => e.domain === domain);
   return [...filtered].sort((a, b) => b.lastUsedAt - a.lastUsedAt);
 }
 
@@ -31,37 +47,92 @@ export async function recordAccount(
   master: string,
   domain: string,
   username: string,
+  profile: Profile,
+  fallback: ProfileFallback,
 ): Promise<AccountEntry> {
   const now = Date.now();
-  const all = await readAll(master);
-  const existing = all.find((e) => e.domain === domain && e.username === username);
+  const { entries } = await readAll(master, fallback);
+  const existing = entries.find((e) => e.domain === domain && e.username === username);
   let entry: AccountEntry;
   if (existing !== undefined) {
     existing.lastUsedAt = now;
+    existing.profile = profile;
     entry = existing;
   } else {
-    entry = { domain, username, createdAt: now, lastUsedAt: now };
-    all.push(entry);
+    entry = {
+      domain,
+      username,
+      profile,
+      createdAt: now,
+      lastUsedAt: now,
+    };
+    entries.push(entry);
   }
-  await writeAll(master, all);
+  await writeAll(master, entries);
   return entry;
+}
+
+export async function updateAccountProfile(
+  master: string,
+  domain: string,
+  username: string,
+  profile: Profile,
+  fallback: ProfileFallback,
+): Promise<AccountEntry | null> {
+  const { entries } = await readAll(master, fallback);
+  const target = entries.find((e) => e.domain === domain && e.username === username);
+  if (target === undefined) return null;
+  target.profile = profile;
+  target.lastUsedAt = Date.now();
+  await writeAll(master, entries);
+  return target;
+}
+
+/**
+ * Rename an entry's username. Returns the updated entry on success, or
+ * `null` when the source is missing or the destination already exists
+ * (the caller surfaces the collision as a user-facing error).
+ */
+export async function renameAccount(
+  master: string,
+  domain: string,
+  oldUsername: string,
+  newUsername: string,
+  fallback: ProfileFallback,
+): Promise<{ ok: true; entry: AccountEntry } | { ok: false; reason: "missing" | "exists" }> {
+  if (oldUsername === newUsername) {
+    const { entries } = await readAll(master, fallback);
+    const target = entries.find((e) => e.domain === domain && e.username === oldUsername);
+    if (target === undefined) return { ok: false, reason: "missing" };
+    return { ok: true, entry: target };
+  }
+  const { entries } = await readAll(master, fallback);
+  const target = entries.find((e) => e.domain === domain && e.username === oldUsername);
+  if (target === undefined) return { ok: false, reason: "missing" };
+  const collision = entries.find((e) => e.domain === domain && e.username === newUsername);
+  if (collision !== undefined) return { ok: false, reason: "exists" };
+  target.username = newUsername;
+  target.lastUsedAt = Date.now();
+  await writeAll(master, entries);
+  return { ok: true, entry: target };
 }
 
 export async function deleteAccount(
   master: string,
   domain: string,
   username: string,
+  fallback: ProfileFallback,
 ): Promise<void> {
-  const all = await readAll(master);
-  const next = all.filter((e) => !(e.domain === domain && e.username === username));
-  if (next.length === all.length) return;
+  const { entries } = await readAll(master, fallback);
+  const next = entries.filter((e) => !(e.domain === domain && e.username === username));
+  if (next.length === entries.length) return;
   await writeAll(master, next);
 }
 
 /**
- * Remove the encrypted blob entirely. Returns 1 if a blob existed (we cannot
- * count entries without the master), 0 otherwise — the caller surfaces this
- * as a coarse "history wiped" confirmation.
+ * Remove the encrypted blob entirely. Returns 1 if a blob existed, 0
+ * otherwise — the caller surfaces this as a coarse "history wiped"
+ * confirmation. We don't have the master here so we can't count entries.
  */
 export async function wipeAccounts(): Promise<number> {
   const { [STORAGE_KEY]: raw } = await chrome.storage.local.get(STORAGE_KEY);
@@ -70,9 +141,20 @@ export async function wipeAccounts(): Promise<number> {
   return 1;
 }
 
-async function readAll(master: string): Promise<AccountEntry[]> {
+interface RawEntry {
+  domain: string;
+  username: string;
+  profile?: Profile;
+  createdAt: number;
+  lastUsedAt: number;
+}
+
+async function readAll(
+  master: string,
+  fallback: ProfileFallback,
+): Promise<{ entries: AccountEntry[] }> {
   const { [STORAGE_KEY]: raw } = await chrome.storage.local.get(STORAGE_KEY);
-  if (!raw || typeof raw !== "object") return [];
+  if (!raw || typeof raw !== "object") return { entries: [] };
   const blob = raw as CipherBlob;
   const salt = base64ToBytes(blob.salt);
   const iv = base64ToBytes(blob.iv);
@@ -84,8 +166,33 @@ async function readAll(master: string): Promise<AccountEntry[]> {
     ciphertext as BufferSource,
   );
   const parsed = JSON.parse(new TextDecoder().decode(plain));
-  if (!Array.isArray(parsed)) return [];
-  return parsed as AccountEntry[];
+  if (!Array.isArray(parsed)) return { entries: [] };
+
+  let needsRewrite = false;
+  const entries: AccountEntry[] = (parsed as RawEntry[]).map((e) => {
+    if (e.profile !== undefined) {
+      return e as AccountEntry;
+    }
+    needsRewrite = true;
+    let profile: Profile;
+    try {
+      profile = fallback(e.domain);
+    } catch {
+      profile = DEFAULT_RANDOM_PROFILE;
+    }
+    return {
+      domain: e.domain,
+      username: e.username,
+      profile,
+      createdAt: e.createdAt,
+      lastUsedAt: e.lastUsedAt,
+    };
+  });
+
+  if (needsRewrite) {
+    await writeAll(master, entries);
+  }
+  return { entries };
 }
 
 async function writeAll(master: string, entries: AccountEntry[]): Promise<void> {

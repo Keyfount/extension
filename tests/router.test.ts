@@ -223,6 +223,7 @@ describe("router — account history", () => {
       kind: "recordAccount",
       domain: "example.com",
       username: "alice@x.com",
+      profile: DEFAULT_RANDOM_PROFILE,
     });
     expect(rec).toMatchObject({ ok: true, entry: { domain: "example.com" } });
     const list = await handleRequest({ kind: "listAccounts", domain: "example.com" });
@@ -239,6 +240,7 @@ describe("router — account history", () => {
       kind: "recordAccount",
       domain: "example.com",
       username: "alice@x.com",
+      profile: DEFAULT_RANDOM_PROFILE,
     });
     const off = await handleRequest({ kind: "setHistoryEnabled", enabled: false });
     expect(off).toMatchObject({ ok: true });
@@ -254,7 +256,75 @@ describe("router — account history", () => {
       kind: "recordAccount",
       domain: "example.com",
       username: "alice@x.com",
+      profile: DEFAULT_RANDOM_PROFILE,
     });
     expect(res).toEqual({ ok: false, error: "history disabled" });
+  });
+
+  it("updateAccountProfile changes only that entry", async () => {
+    const memorable = { ...DEFAULT_RANDOM_PROFILE };
+    await handleRequest({ kind: "setup", master: "correct-horse-battery" });
+    await handleRequest({ kind: "setHistoryEnabled", enabled: true });
+    await handleRequest({
+      kind: "recordAccount",
+      domain: "a.com",
+      username: "alice",
+      profile: DEFAULT_RANDOM_PROFILE,
+    });
+    const updated = await handleRequest({
+      kind: "updateAccountProfile",
+      domain: "a.com",
+      username: "alice",
+      profile: { ...memorable, length: 24 },
+    });
+    expect(updated).toMatchObject({ ok: true });
+    const list = await handleRequest({ kind: "listAccounts", domain: "a.com" });
+    if (list.ok === false) throw new Error(list.error);
+    if (!("entries" in list)) throw new Error("unexpected shape");
+    expect(list.entries[0]?.profile).toMatchObject({ length: 24 });
+  });
+
+  it("renameAccount surfaces collisions", async () => {
+    await handleRequest({ kind: "setup", master: "correct-horse-battery" });
+    await handleRequest({ kind: "setHistoryEnabled", enabled: true });
+    await handleRequest({
+      kind: "recordAccount",
+      domain: "a.com",
+      username: "alice",
+      profile: DEFAULT_RANDOM_PROFILE,
+    });
+    await handleRequest({
+      kind: "recordAccount",
+      domain: "a.com",
+      username: "bob",
+      profile: DEFAULT_RANDOM_PROFILE,
+    });
+    const collide = await handleRequest({
+      kind: "renameAccount",
+      domain: "a.com",
+      oldUsername: "alice",
+      newUsername: "bob",
+    });
+    expect(collide).toEqual({ ok: false, error: "username already exists" });
+    const renamed = await handleRequest({
+      kind: "renameAccount",
+      domain: "a.com",
+      oldUsername: "alice",
+      newUsername: "alice2",
+    });
+    expect(renamed).toMatchObject({ ok: true });
+  });
+
+  it("setFaviconFallbackEnabled toggles the state flag", async () => {
+    await handleRequest({ kind: "setup", master: "correct-horse-battery" });
+    const before = await handleRequest({ kind: "getState" });
+    if (before.ok === false) throw new Error(before.error);
+    if (!("faviconFallbackEnabled" in before)) throw new Error("missing flag");
+    expect(before.faviconFallbackEnabled).toBe(true);
+    await handleRequest({ kind: "setFaviconFallbackEnabled", enabled: false });
+    const after = await handleRequest({ kind: "getState" });
+    if (after.ok === false) throw new Error(after.error);
+    if (!("faviconFallbackEnabled" in after)) throw new Error("missing flag");
+    expect(after.faviconFallbackEnabled).toBe(false);
   });
 }, 120_000);

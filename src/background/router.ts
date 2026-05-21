@@ -11,7 +11,15 @@ import {
   fingerprintMaster,
   formatFingerprint,
 } from "./crypto/index.js";
-import { deleteAccount, listAccounts, recordAccount, wipeAccounts } from "./accounts.js";
+import {
+  deleteAccount,
+  listAccounts,
+  recordAccount,
+  renameAccount,
+  updateAccountProfile,
+  wipeAccounts,
+  type ProfileFallback,
+} from "./accounts.js";
 import { clearPendingSave, getPendingSave, setPendingSave } from "./pending.js";
 import { effectiveProfile, loadState, updateState, wipeAll, type StoredState } from "./storage.js";
 import { lock, readMaster, status as sessionStatus, unlock } from "./session.js";
@@ -99,12 +107,27 @@ export async function handleRequest(request: Request): Promise<AnyResponse> {
       case "listAccounts":
         return await handleListAccounts(request.domain);
       case "recordAccount":
-        return await handleRecordAccount(request.domain, request.username);
+        return await handleRecordAccount(request.domain, request.username, request.profile);
+      case "updateAccountProfile":
+        return await handleUpdateAccountProfile(
+          request.domain,
+          request.username,
+          request.profile,
+        );
+      case "renameAccount":
+        return await handleRenameAccount(
+          request.domain,
+          request.oldUsername,
+          request.newUsername,
+        );
       case "deleteAccount":
         await handleDeleteAccount(request.domain, request.username);
         return { ok: true };
       case "setHistoryEnabled":
         return await handleSetHistoryEnabled(request.enabled);
+      case "setFaviconFallbackEnabled":
+        await updateState((s) => ({ ...s, faviconFallbackEnabled: request.enabled }));
+        return { ok: true };
       case "setPendingSave":
         await setPendingSave(request.domain, request.username);
         return { ok: true };
@@ -254,8 +277,13 @@ async function handleGetState(): Promise<GetStateResponse> {
     autoLockMinutes: state.autoLockMinutes,
     hasPin: state.pin !== undefined,
     historyEnabled: state.historyEnabled,
+    faviconFallbackEnabled: state.faviconFallbackEnabled,
     sites: state.sites,
   };
+}
+
+function fallbackFor(state: StoredState): ProfileFallback {
+  return (domain: string) => effectiveProfile(state, domain);
 }
 
 async function handleListAccounts(
@@ -263,13 +291,15 @@ async function handleListAccounts(
 ): Promise<ListAccountsResponse | ErrorResponse> {
   const master = await readMaster();
   if (master === null) return { ok: false, error: "locked" };
-  const entries = await listAccounts(master, domain);
+  const state = await loadState();
+  const entries = await listAccounts(master, domain, fallbackFor(state));
   return { ok: true, entries };
 }
 
 async function handleRecordAccount(
   domain: string,
   username: string,
+  profile: Profile,
 ): Promise<RecordAccountResponse | ErrorResponse> {
   const master = await readMaster();
   if (master === null) return { ok: false, error: "locked" };
@@ -278,14 +308,48 @@ async function handleRecordAccount(
   const trimmed = username.trim();
   if (trimmed.length === 0) return { ok: false, error: "username required" };
   if (domain.length === 0) return { ok: false, error: "domain required" };
-  const entry = await recordAccount(master, domain, trimmed);
+  const entry = await recordAccount(master, domain, trimmed, profile, fallbackFor(state));
   return { ok: true, entry };
+}
+
+async function handleUpdateAccountProfile(
+  domain: string,
+  username: string,
+  profile: Profile,
+): Promise<RecordAccountResponse | ErrorResponse> {
+  const master = await readMaster();
+  if (master === null) return { ok: false, error: "locked" };
+  const state = await loadState();
+  const entry = await updateAccountProfile(master, domain, username, profile, fallbackFor(state));
+  if (entry === null) return { ok: false, error: "account not found" };
+  return { ok: true, entry };
+}
+
+async function handleRenameAccount(
+  domain: string,
+  oldUsername: string,
+  newUsername: string,
+): Promise<RecordAccountResponse | ErrorResponse> {
+  const master = await readMaster();
+  if (master === null) return { ok: false, error: "locked" };
+  const trimmed = newUsername.trim();
+  if (trimmed.length === 0) return { ok: false, error: "username required" };
+  const state = await loadState();
+  const result = await renameAccount(master, domain, oldUsername, trimmed, fallbackFor(state));
+  if (!result.ok) {
+    return {
+      ok: false,
+      error: result.reason === "exists" ? "username already exists" : "account not found",
+    };
+  }
+  return { ok: true, entry: result.entry };
 }
 
 async function handleDeleteAccount(domain: string, username: string): Promise<void> {
   const master = await readMaster();
   if (master === null) return;
-  await deleteAccount(master, domain, username);
+  const state = await loadState();
+  await deleteAccount(master, domain, username, fallbackFor(state));
 }
 
 async function handleSetHistoryEnabled(

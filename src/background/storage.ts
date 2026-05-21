@@ -9,7 +9,7 @@
  */
 import { DEFAULT_RANDOM_PROFILE, type Profile } from "../shared/types.js";
 
-export const SCHEMA_VERSION = 2 as const;
+export const SCHEMA_VERSION = 3 as const;
 
 export interface PinBlob {
   /** AES-GCM ciphertext of the master, base64 (RFC 4648, no padding). */
@@ -28,6 +28,12 @@ export interface StoredState {
   autoLockMinutes: number;
   /** Opt-in. When false, the badge never records accounts. */
   historyEnabled: boolean;
+  /**
+   * Whether to fall back to Google's public favicon service when Chrome's
+   * built-in cache doesn't have an icon for a domain. Defaults on; users
+   * who don't want to leak their domain list to Google can disable it.
+   */
+  faviconFallbackEnabled: boolean;
   /** 3-byte master fingerprint, hex-encoded. Present after first-run setup. */
   fingerprint?: string;
   /** Present iff PIN mode is enabled. */
@@ -43,6 +49,7 @@ export const DEFAULT_STATE: StoredState = Object.freeze({
   defaultProfile: DEFAULT_RANDOM_PROFILE,
   autoLockMinutes: 15,
   historyEnabled: false,
+  faviconFallbackEnabled: true,
   sites: {},
 }) as StoredState;
 
@@ -59,7 +66,7 @@ export async function loadState(): Promise<StoredState> {
     schemaVersion?: number;
   };
   const rawSchema = state.schemaVersion;
-  if (rawSchema !== 1 && rawSchema !== SCHEMA_VERSION) {
+  if (rawSchema !== 1 && rawSchema !== 2 && rawSchema !== SCHEMA_VERSION) {
     return cloneDefault();
   }
   const migrated: StoredState = {
@@ -67,11 +74,12 @@ export async function loadState(): Promise<StoredState> {
     defaultProfile: state.defaultProfile ?? DEFAULT_RANDOM_PROFILE,
     autoLockMinutes: state.autoLockMinutes ?? 15,
     historyEnabled: state.historyEnabled ?? false,
+    faviconFallbackEnabled: state.faviconFallbackEnabled ?? true,
     ...(state.fingerprint !== undefined ? { fingerprint: state.fingerprint } : {}),
     ...(state.pin !== undefined ? { pin: state.pin } : {}),
     sites: state.sites ?? {},
   };
-  if (rawSchema === 1) {
+  if (rawSchema !== SCHEMA_VERSION) {
     await saveState(migrated);
   }
   return migrated;
@@ -111,6 +119,7 @@ function cloneDefault(): StoredState {
     defaultProfile: { ...DEFAULT_STATE.defaultProfile },
     autoLockMinutes: DEFAULT_STATE.autoLockMinutes,
     historyEnabled: DEFAULT_STATE.historyEnabled,
+    faviconFallbackEnabled: DEFAULT_STATE.faviconFallbackEnabled,
     sites: {},
   };
 }

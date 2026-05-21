@@ -26,8 +26,11 @@ export type Request =
   | { kind: "getState" }
   | { kind: "wipe" }
   | { kind: "listAccounts"; domain?: string }
-  | { kind: "recordAccount"; domain: string; username: string }
+  | { kind: "recordAccount"; domain: string; username: string; profile: Profile }
+  | { kind: "updateAccountProfile"; domain: string; username: string; profile: Profile }
+  | { kind: "renameAccount"; domain: string; oldUsername: string; newUsername: string }
   | { kind: "deleteAccount"; domain: string; username: string }
+  | { kind: "setFaviconFallbackEnabled"; enabled: boolean }
   | { kind: "setHistoryEnabled"; enabled: boolean }
   | { kind: "setPendingSave"; domain: string; username: string }
   | { kind: "getPendingSave"; domain: string }
@@ -101,6 +104,7 @@ export interface GetStateResponse {
   autoLockMinutes: number;
   hasPin: boolean;
   historyEnabled: boolean;
+  faviconFallbackEnabled: boolean;
   sites: Record<string, Profile>;
 }
 

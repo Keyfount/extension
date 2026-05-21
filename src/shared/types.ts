@@ -76,6 +76,14 @@ export const DEFAULT_MEMORABLE_PROFILE: MemorableProfile = {
 export interface AccountEntry {
   domain: string;
   username: string;
+  /**
+   * Generation profile frozen at account-creation time. A given saved
+   * account always recomputes its password with the profile it was created
+   * with, regardless of any later changes to the per-site or default
+   * profile. Older entries persisted before this field existed are
+   * backfilled lazily at read time with the site's effective profile.
+   */
+  profile: Profile;
   createdAt: number;
   lastUsedAt: number;
 }
