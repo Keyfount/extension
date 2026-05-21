@@ -221,8 +221,10 @@
   "detail_rotate_hint": {
     "message": "Incrémente le compteur et recalcule un nouveau mot de passe pour ce compte. Utile quand un site impose un changement ou en cas de fuite."
   },
-  "detail_rotate_cta": { "message": "Renouveler le mdp" },
-  "detail_rotate_done": { "message": "Renouvelé" },
+  "detail_rotate_cta": { "message": "Renouveler le mot de passe" },
+  "detail_rotate_old_label": { "message": "Mot de passe actuel" },
+  "detail_rotate_new_label": { "message": "Nouveau mot de passe" },
+  "detail_rotate_confirm": { "message": "Confirmer le renouvellement" },
 
   "detail_rename_warning_title": { "message": "Renommer change aussi le mot de passe" },
   "detail_rename_warning_body": {

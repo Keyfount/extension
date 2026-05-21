@@ -457,11 +457,13 @@ function Badge({
           return;
         }
 
+        let savedForDomain: AccountEntry[] = [];
         try {
           const ext = await send({ kind: "getState" });
           setHistoryEnabled(ext.historyEnabled);
           if (ext.historyEnabled) {
             const list = await send({ kind: "listAccounts", domain });
+            savedForDomain = list.entries;
             setSaved(list.entries);
           } else {
             setSaved([]);
@@ -494,12 +496,18 @@ function Badge({
           return;
         }
 
-        if (profile === null && override?.profile === undefined) {
+        // A saved account always wins over the per-site default — its
+        // profile is frozen at creation and tracks rotations done from
+        // the popup's detail page. Otherwise fall back to the site's
+        // effective profile so first-time logins still work.
+        const matching = savedForDomain.find((e) => e.username === email);
+        const matchingProfile = matching?.profile ?? null;
+        if (matchingProfile === null && profile === null && override?.profile === undefined) {
           const p = await send({ kind: "getProfile", domain });
           setProfile(p.profile);
         }
 
-        const effective = override?.profile ?? profile;
+        const effective = override?.profile ?? matchingProfile ?? profile;
         const response = await send({
           kind: "generate",
           domain,
