@@ -12,7 +12,7 @@ import { ProfileEditor } from "../shared/ProfileEditor.js";
 import { Logo } from "../shared/Logo.js";
 import { IconCheck, IconCopy, IconSettings, IconClose } from "../shared/icons.js";
 import { t } from "../shared/i18n.js";
-import type { Profile } from "../shared/types.js";
+import type { AccountEntry, Profile } from "../shared/types.js";
 import { readUsername } from "./detect.js";
 import { BackgroundError, send } from "./messaging.js";
 import atomStyles from "../shared/atoms.css?inline";
@@ -137,6 +137,9 @@ function Badge({ password, registerOpen, registerClose, registerUpdate }: BadgeP
   const [profile, setProfile] = useState<Profile | null>(null);
   const [copied, setCopied] = useState(false);
   const [emailOverride, setEmailOverride] = useState("");
+  const [historyEnabled, setHistoryEnabled] = useState(false);
+  const [saved, setSaved] = useState<AccountEntry[]>([]);
+  const [showSavePrompt, setShowSavePrompt] = useState(false);
 
   useEffect(() => {
     registerOpen(() => setOpen(true));
@@ -187,6 +190,20 @@ function Badge({ password, registerOpen, registerClose, registerUpdate }: BadgeP
           setStatus({ kind: "no-domain" });
           return;
         }
+
+        try {
+          const ext = await send({ kind: "getState" });
+          setHistoryEnabled(ext.historyEnabled);
+          if (ext.historyEnabled) {
+            const list = await send({ kind: "listAccounts", domain });
+            setSaved(list.entries);
+          } else {
+            setSaved([]);
+          }
+        } catch {
+          setHistoryEnabled(false);
+          setSaved([]);
+        }
         const email = override?.email ?? (emailOverride.trim() || readUsername(password));
         if (email.length === 0) {
           setStatus({ kind: "no-email", domain });
@@ -223,8 +240,46 @@ function Badge({ password, registerOpen, registerClose, registerUpdate }: BadgeP
     else password.value = status.password;
     password.dispatchEvent(new Event("input", { bubbles: true }));
     password.dispatchEvent(new Event("change", { bubbles: true }));
+
+    const currentEmail = emailOverride.trim() || readUsername(password);
+    const alreadySaved = saved.some(
+      (e) => e.username === currentEmail && e.domain === status.domain,
+    );
+    if (historyEnabled && !alreadySaved && currentEmail.length > 0) {
+      setShowSavePrompt(true);
+      return;
+    }
     setOpen(false);
-  }, [password, status]);
+  }, [password, status, historyEnabled, saved, emailOverride]);
+
+  const pickSaved = useCallback(
+    (username: string) => {
+      setEmailOverride(username);
+      void refresh({ email: username });
+    },
+    [refresh],
+  );
+
+  const confirmSave = useCallback(async () => {
+    if (status.kind !== "ready") return;
+    const username = emailOverride.trim() || readUsername(password);
+    if (username.length === 0) {
+      setShowSavePrompt(false);
+      setOpen(false);
+      return;
+    }
+    try {
+      await send({
+        kind: "recordAccount",
+        domain: status.domain,
+        username,
+      });
+    } catch {
+      /* swallowed — saving is a nice-to-have */
+    }
+    setShowSavePrompt(false);
+    setOpen(false);
+  }, [status, emailOverride, password]);
 
   const copy = useCallback(async () => {
     if (status.kind !== "ready") return;
@@ -331,7 +386,49 @@ function Badge({ password, registerOpen, registerClose, registerUpdate }: BadgeP
             </div>
           </div>
 
-          {renderBody({
+          {historyEnabled && saved.length > 0 && !showSavePrompt ? (
+            <div class="badge__saved">
+              <span class="badge__saved-label">{t("history_saved_for_site")}</span>
+              <ul class="badge__saved-list">
+                {saved.map((entry) => (
+                  <li key={entry.username}>
+                    <button
+                      type="button"
+                      class="badge__saved-row"
+                      onClick={() => pickSaved(entry.username)}
+                    >
+                      {entry.username}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          {showSavePrompt ? (
+            <div class="badge__save-prompt">
+              <span class="badge__status">{t("history_save_prompt")}</span>
+              <div class="badge__actions">
+                <button
+                  type="button"
+                  class="badge__btn badge__btn--primary"
+                  onClick={() => void confirmSave()}
+                >
+                  {t("history_save_cta")}
+                </button>
+                <button
+                  type="button"
+                  class="badge__btn"
+                  onClick={() => {
+                    setShowSavePrompt(false);
+                    setOpen(false);
+                  }}
+                >
+                  {t("history_save_dismiss")}
+                </button>
+              </div>
+            </div>
+          ) : renderBody({
             status,
             showSettings,
             profile,
