@@ -2,10 +2,11 @@ import { useCallback, useEffect, useState } from "preact/hooks";
 import { AnimatePresence, motion } from "framer-motion";
 import { send } from "../api.js";
 import { Header } from "./Header.js";
-import { SavedAccountsForDomain } from "./SavedAccountsForDomain.js";
+import { AccountList } from "./AccountList.js";
 import {
   IconCheck,
   IconChevronDown,
+  IconChevronRight,
   IconCopy,
   IconEye,
   IconEyeOff,
@@ -19,21 +20,27 @@ import type { Profile } from "../../shared/types.js";
 import {
   activeDomain,
   activeEmail,
+  allAccounts,
   busy,
   canGenerate,
   errorMessage,
   fingerprint,
   generated,
   historyEnabled,
-  savedAccounts,
   screen,
 } from "../state.js";
 
+type Mode = "list" | "generate";
+
 export function MainScreen() {
+  const initialMode: Mode =
+    historyEnabled.value && allAccounts.value.length > 0 ? "list" : "generate";
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     generated.value = null;
@@ -41,9 +48,9 @@ export function MainScreen() {
     setCopied(false);
     setProfile(null);
     setShowProfile(false);
+    setSaved(false);
   }, [activeDomain.value, activeEmail.value]);
 
-  // Lazy-load the per-site profile when the user opens the customise panel.
   useEffect(() => {
     if (!showProfile || profile !== null || activeDomain.value === null) return;
     let cancelled = false;
@@ -52,7 +59,7 @@ export function MainScreen() {
         if (!cancelled) setProfile(response.profile);
       },
       () => {
-        // ignore — generate still works with the default
+        /* ignore */
       },
     );
     return () => {
@@ -79,14 +86,6 @@ export function MainScreen() {
     }
   }, [profile]);
 
-  const pickSaved = useCallback(
-    (username: string) => {
-      activeEmail.value = username;
-      void generate();
-    },
-    [generate],
-  );
-
   const updateProfile = useCallback(async (next: Profile) => {
     setProfile(next);
     generated.value = null;
@@ -94,7 +93,7 @@ export function MainScreen() {
       try {
         await send({ kind: "setProfile", domain: activeDomain.value, profile: next });
       } catch {
-        // swallowed — the next generate will still use the in-memory next
+        /* swallowed */
       }
     }
   }, []);
@@ -106,7 +105,30 @@ export function MainScreen() {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      // swallowed — clipboard API may be unavailable
+      /* swallowed */
+    }
+  }, []);
+
+  const saveToHistory = useCallback(async () => {
+    if (activeDomain.value === null || activeEmail.value.trim().length === 0) return;
+    try {
+      const res = await send({
+        kind: "recordAccount",
+        domain: activeDomain.value,
+        username: activeEmail.value.trim(),
+      });
+      // Optimistically prepend to the in-memory list.
+      const exists = allAccounts.value.some(
+        (e) => e.domain === res.entry.domain && e.username === res.entry.username,
+      );
+      allAccounts.value = exists
+        ? allAccounts.value.map((e) =>
+            e.domain === res.entry.domain && e.username === res.entry.username ? res.entry : e,
+          )
+        : [res.entry, ...allAccounts.value];
+      setSaved(true);
+    } catch {
+      /* swallowed */
     }
   }, []);
 
@@ -119,6 +141,8 @@ export function MainScreen() {
   const onSettings = useCallback(() => {
     screen.value = "settings";
   }, []);
+
+  const canShowList = historyEnabled.value && allAccounts.value.length > 0;
 
   return (
     <motion.div
@@ -154,130 +178,157 @@ export function MainScreen() {
         }
       />
 
-      {activeDomain.value === null ? (
-        <p class="text-(--color-ink-muted) text-sm leading-relaxed">{t("main_no_site")}</p>
+      {mode === "list" && canShowList ? (
+        <AccountList onAddNew={() => setMode("generate")} />
       ) : (
         <>
-          {historyEnabled.value && savedAccounts.value.length > 0 ? (
-            <SavedAccountsForDomain onPick={pickSaved} />
-          ) : null}
-
-          <label class="flex flex-col gap-2">
-            <span class="field-label">{t("main_username_label")}</span>
-            <input
-              class="input"
-              type="text"
-              value={activeEmail.value}
-              autocomplete="off"
-              placeholder={t("main_username_placeholder")}
-              onInput={(e) => {
-                activeEmail.value = (e.target as HTMLInputElement).value;
-              }}
-            />
-          </label>
-
-          <motion.button
-            type="button"
-            class="btn"
-            whileTap={TAP_SCALE}
-            onClick={generate}
-            disabled={busy.value || !canGenerate.value}
-          >
-            {busy.value ? t("common_generating") : t("common_generate")}
-          </motion.button>
-
-          <div class="flex flex-col">
+          {canShowList ? (
             <button
               type="button"
-              class="flex items-center justify-between gap-2 py-1.5 px-1 text-xs text-(--color-ink-muted) hover:text-(--color-ink) transition-colors cursor-pointer bg-transparent border-0 font-medium"
-              onClick={() => setShowProfile((v) => !v)}
-              aria-expanded={showProfile}
+              class="flex items-center gap-1 self-start py-1 px-1 text-xs text-(--color-ink-muted) hover:text-(--color-ink) transition-colors cursor-pointer bg-transparent border-0 font-medium"
+              onClick={() => setMode("list")}
             >
-              <span>{t("badge_customize")}</span>
-              <motion.span
-                animate={{ rotate: showProfile ? 180 : 0 }}
-                transition={SOFT_SPRING}
-                class="grid place-items-center"
-              >
-                <IconChevronDown size={14} />
-              </motion.span>
+              <IconChevronRight size={14} style={{ transform: "rotate(180deg)" }} />
+              <span>{t("main_back_to_list")}</span>
             </button>
-            <AnimatePresence>
-              {showProfile ? (
-                <motion.div
-                  key="profile"
-                  class="overflow-hidden"
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1, transition: SOFT_SPRING }}
-                  exit={{ height: 0, opacity: 0, transition: { duration: 0.15 } }}
-                >
-                  <div class="pt-3 pb-1">
-                    {profile !== null ? (
-                      <ProfileEditor profile={profile} onChange={updateProfile} compact />
-                    ) : (
-                      <div class="flex flex-col gap-2">
-                        <div class="skeleton h-7 w-full" />
-                        <div class="skeleton h-4 w-2/3" />
-                        <div class="skeleton h-4 w-full" />
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
-              ) : null}
-            </AnimatePresence>
-          </div>
-
-          <AnimatePresence>
-            {generated.value !== null ? (
-              <motion.div
-                key="generated"
-                class="flex flex-col gap-3 p-4 rounded-[10px] bg-(--color-surface-sunken) border border-(--color-line)"
-                variants={POP_IN}
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                layout
-              >
-                <code
-                  class={
-                    revealed
-                      ? "font-mono text-sm break-all select-all cursor-text text-(--color-ink) min-h-5"
-                      : "font-mono text-sm break-all select-all cursor-text text-(--color-ink-muted) min-h-5 tracking-[0.15em]"
-                  }
-                >
-                  {revealed ? generated.value : "•".repeat(Math.min(generated.value.length, 24))}
-                </code>
-                <div class="flex gap-2">
-                  <motion.button
-                    type="button"
-                    class="btn btn-ghost btn-sm flex-1"
-                    whileTap={TAP_SCALE}
-                    onClick={() => setRevealed((v) => !v)}
-                  >
-                    {revealed ? <IconEyeOff size={14} /> : <IconEye size={14} />}
-                    {revealed ? t("common_hide") : t("common_reveal")}
-                  </motion.button>
-                  <motion.button
-                    type="button"
-                    class="btn btn-ghost btn-sm flex-1"
-                    whileTap={TAP_SCALE}
-                    onClick={copy}
-                  >
-                    {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
-                    {copied ? t("common_copied") : t("common_copy")}
-                  </motion.button>
-                </div>
-              </motion.div>
-            ) : !canGenerate.value ? (
-              <p class="field-hint">{t("main_no_email")}</p>
-            ) : null}
-          </AnimatePresence>
-
-          {errorMessage.value !== null ? (
-            <div class="field-error" role="alert">
-              {errorMessage.value}
-            </div>
           ) : null}
+
+          {activeDomain.value === null ? (
+            <p class="text-(--color-ink-muted) text-sm leading-relaxed">{t("main_no_site")}</p>
+          ) : (
+            <>
+              <label class="flex flex-col gap-2">
+                <span class="field-label">{t("main_username_label")}</span>
+                <input
+                  class="input"
+                  type="text"
+                  value={activeEmail.value}
+                  autocomplete="off"
+                  placeholder={t("main_username_placeholder")}
+                  onInput={(e) => {
+                    activeEmail.value = (e.target as HTMLInputElement).value;
+                  }}
+                />
+              </label>
+
+              <motion.button
+                type="button"
+                class="btn"
+                whileTap={TAP_SCALE}
+                onClick={generate}
+                disabled={busy.value || !canGenerate.value}
+              >
+                {busy.value ? t("common_generating") : t("common_generate")}
+              </motion.button>
+
+              <div class="flex flex-col">
+                <button
+                  type="button"
+                  class="flex items-center justify-between gap-2 py-1.5 px-1 text-xs text-(--color-ink-muted) hover:text-(--color-ink) transition-colors cursor-pointer bg-transparent border-0 font-medium"
+                  onClick={() => setShowProfile((v) => !v)}
+                  aria-expanded={showProfile}
+                >
+                  <span>{t("badge_customize")}</span>
+                  <motion.span
+                    animate={{ rotate: showProfile ? 180 : 0 }}
+                    transition={SOFT_SPRING}
+                    class="grid place-items-center"
+                  >
+                    <IconChevronDown size={14} />
+                  </motion.span>
+                </button>
+                <AnimatePresence>
+                  {showProfile ? (
+                    <motion.div
+                      key="profile"
+                      class="overflow-hidden"
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1, transition: SOFT_SPRING }}
+                      exit={{ height: 0, opacity: 0, transition: { duration: 0.15 } }}
+                    >
+                      <div class="pt-3 pb-1">
+                        {profile !== null ? (
+                          <ProfileEditor profile={profile} onChange={updateProfile} compact />
+                        ) : (
+                          <div class="flex flex-col gap-2">
+                            <div class="skeleton h-7 w-full" />
+                            <div class="skeleton h-4 w-2/3" />
+                            <div class="skeleton h-4 w-full" />
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  ) : null}
+                </AnimatePresence>
+              </div>
+
+              <AnimatePresence>
+                {generated.value !== null ? (
+                  <motion.div
+                    key="generated"
+                    class="flex flex-col gap-3 p-4 rounded-[10px] bg-(--color-surface-sunken) border border-(--color-line)"
+                    variants={POP_IN}
+                    initial="initial"
+                    animate="animate"
+                    exit="exit"
+                    layout
+                  >
+                    <code
+                      class={
+                        revealed
+                          ? "font-mono text-sm break-all select-all cursor-text text-(--color-ink) min-h-5"
+                          : "font-mono text-sm break-all select-all cursor-text text-(--color-ink-muted) min-h-5 tracking-[0.15em]"
+                      }
+                    >
+                      {revealed
+                        ? generated.value
+                        : "•".repeat(Math.min(generated.value.length, 24))}
+                    </code>
+                    <div class="flex gap-2 flex-wrap">
+                      <motion.button
+                        type="button"
+                        class="btn btn-ghost btn-sm flex-1"
+                        whileTap={TAP_SCALE}
+                        onClick={() => setRevealed((v) => !v)}
+                      >
+                        {revealed ? <IconEyeOff size={14} /> : <IconEye size={14} />}
+                        {revealed ? t("common_hide") : t("common_reveal")}
+                      </motion.button>
+                      <motion.button
+                        type="button"
+                        class="btn btn-ghost btn-sm flex-1"
+                        whileTap={TAP_SCALE}
+                        onClick={copy}
+                      >
+                        {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+                        {copied ? t("common_copied") : t("common_copy")}
+                      </motion.button>
+                      {historyEnabled.value ? (
+                        <motion.button
+                          type="button"
+                          class="btn btn-sm flex-1"
+                          whileTap={TAP_SCALE}
+                          onClick={saveToHistory}
+                          disabled={saved}
+                        >
+                          {saved ? <IconCheck size={14} /> : null}
+                          {saved ? t("common_copied") : t("history_save_cta")}
+                        </motion.button>
+                      ) : null}
+                    </div>
+                  </motion.div>
+                ) : !canGenerate.value ? (
+                  <p class="field-hint">{t("main_no_email")}</p>
+                ) : null}
+              </AnimatePresence>
+
+              {errorMessage.value !== null ? (
+                <div class="field-error" role="alert">
+                  {errorMessage.value}
+                </div>
+              ) : null}
+            </>
+          )}
         </>
       )}
     </motion.div>

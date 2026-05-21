@@ -167,5 +167,8 @@
   "history_saved_for_site": { "message": "Comptes enregistrés pour ce site" },
   "history_search_placeholder": { "message": "Recherche par domaine ou identifiant" },
   "history_relative_just_now": { "message": "à l'instant" },
-  "history_delete_aria": { "message": "Supprimer le compte" }
+  "history_delete_aria": { "message": "Supprimer le compte" },
+
+  "main_add_new": { "message": "Nouveau compte" },
+  "main_back_to_list": { "message": "Retour aux comptes" }
 }

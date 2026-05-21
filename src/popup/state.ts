@@ -41,6 +41,9 @@ export const historyEnabled = signal<boolean>(false);
 /** Saved accounts for the active domain, populated on bootstrap. */
 export const savedAccounts = signal<AccountEntry[]>([]);
 
+/** All saved accounts across every domain, populated on bootstrap. */
+export const allAccounts = signal<AccountEntry[]>([]);
+
 export const canGenerate = computed(
   () => activeDomain.value !== null && activeEmail.value.trim().length > 0,
 );

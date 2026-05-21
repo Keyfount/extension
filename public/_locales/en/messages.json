@@ -167,5 +167,8 @@
   "history_saved_for_site": { "message": "Saved accounts for this site" },
   "history_search_placeholder": { "message": "Search domain or username" },
   "history_relative_just_now": { "message": "just now" },
-  "history_delete_aria": { "message": "Delete account" }
+  "history_delete_aria": { "message": "Delete account" },
+
+  "main_add_new": { "message": "New account" },
+  "main_back_to_list": { "message": "Back to accounts" }
 }

@@ -11,6 +11,7 @@ import { DotGrid } from "../shared/DotGrid.js";
 import {
   activeDomain,
   activeEmail,
+  allAccounts,
   errorMessage,
   fingerprint,
   hasPin,
@@ -79,11 +80,17 @@ async function bootstrap() {
     }
     activeEmail.value = "";
     savedAccounts.value = [];
-    if (historyEnabled.value && activeDomain.value !== null && !status.locked) {
+    allAccounts.value = [];
+    if (historyEnabled.value && !status.locked) {
       try {
-        const res = await send({ kind: "listAccounts", domain: activeDomain.value });
-        savedAccounts.value = res.entries;
+        const res = await send({ kind: "listAccounts" });
+        allAccounts.value = res.entries;
+        savedAccounts.value =
+          activeDomain.value === null
+            ? []
+            : res.entries.filter((e) => e.domain === activeDomain.value);
       } catch {
+        allAccounts.value = [];
         savedAccounts.value = [];
       }
     }

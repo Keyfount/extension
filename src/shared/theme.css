@@ -298,6 +298,34 @@
       tracking-[0.18em] text-(--color-ink-subtle);
   }
 
+  .account-row {
+    @apply w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl
+      bg-(--color-surface-elev) border border-(--color-line)
+      text-left cursor-pointer transition-colors duration-150
+      hover:bg-(--color-surface-sunken) hover:border-(--color-line-strong);
+  }
+  .account-row--active {
+    border-color: var(--color-accent-500);
+  }
+  .account-row[aria-expanded="true"] {
+    background: var(--color-surface-sunken);
+  }
+  .account-row__favicon {
+    @apply shrink-0 w-7 h-7 rounded-xl grid place-items-center
+      bg-(--color-surface-sunken) border border-(--color-line)
+      overflow-hidden text-(--color-ink-muted);
+  }
+  .account-row__favicon img {
+    @apply block w-5 h-5 object-contain;
+  }
+  .account-row__dot {
+    @apply shrink-0 w-1.5 h-1.5 rounded-full bg-(--color-accent-500);
+  }
+  .account-row__details {
+    @apply flex flex-col gap-2 p-3 rounded-2xl border border-(--color-line)
+      border-t-0 -mt-1 bg-(--color-surface-sunken);
+  }
+
   .skeleton {
     background: linear-gradient(
       90deg,
