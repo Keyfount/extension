@@ -66,14 +66,18 @@ function assertPin(pin: string): void {
   }
 }
 
-async function deriveKey(
-  pin: string,
+/**
+ * Derive an AES-GCM key from a secret (PIN, master password, …) via
+ * PBKDF2-SHA256. Shared by the PIN blob and the encrypted accounts list.
+ */
+export async function deriveAesGcmKey(
+  secret: string,
   salt: Uint8Array,
-  iterations: number = PIN_PBKDF2_ITERATIONS,
+  iterations: number,
 ): Promise<CryptoKey> {
   const material = await crypto.subtle.importKey(
     "raw",
-    new TextEncoder().encode(pin) as BufferSource,
+    new TextEncoder().encode(secret) as BufferSource,
     { name: "PBKDF2" },
     false,
     ["deriveKey"],
@@ -85,6 +89,14 @@ async function deriveKey(
     false,
     ["encrypt", "decrypt"],
   );
+}
+
+async function deriveKey(
+  pin: string,
+  salt: Uint8Array,
+  iterations: number = PIN_PBKDF2_ITERATIONS,
+): Promise<CryptoKey> {
+  return deriveAesGcmKey(pin, salt, iterations);
 }
 
 function bytesToBase64(bytes: Uint8Array): string {
