@@ -327,4 +327,33 @@ describe("router — account history", () => {
     if (!("faviconFallbackEnabled" in after)) throw new Error("missing flag");
     expect(after.faviconFallbackEnabled).toBe(false);
   });
+
+  it("setClipboardClearSeconds validates the input range", async () => {
+    await handleRequest({ kind: "setup", master: "correct-horse-battery" });
+    const negative = await handleRequest({ kind: "setClipboardClearSeconds", seconds: -1 });
+    expect(negative.ok).toBe(false);
+    const tooLarge = await handleRequest({ kind: "setClipboardClearSeconds", seconds: 1000 });
+    expect(tooLarge.ok).toBe(false);
+    const ok = await handleRequest({ kind: "setClipboardClearSeconds", seconds: 45 });
+    expect(ok).toEqual({ ok: true });
+    const state = await handleRequest({ kind: "getState" });
+    if (state.ok === false) throw new Error(state.error);
+    if (!("clipboardClearSeconds" in state)) throw new Error("missing flag");
+    expect(state.clipboardClearSeconds).toBe(45);
+  });
+
+  it("armClipboardClear honours the stored default when no seconds provided", async () => {
+    await handleRequest({ kind: "setup", master: "correct-horse-battery" });
+    await handleRequest({ kind: "setClipboardClearSeconds", seconds: 10 });
+    const armed = await handleRequest({ kind: "armClipboardClear" });
+    expect(armed).toEqual({ ok: true });
+    const cancelled = await handleRequest({ kind: "cancelClipboardClear" });
+    expect(cancelled).toEqual({ ok: true });
+  });
+
+  it("armClipboardClear with an explicit zero is a no-op cancellation", async () => {
+    await handleRequest({ kind: "setup", master: "correct-horse-battery" });
+    const res = await handleRequest({ kind: "armClipboardClear", seconds: 0 });
+    expect(res).toEqual({ ok: true });
+  });
 }, 120_000);
