@@ -52,10 +52,7 @@ export async function showSaveBanner({
     host.remove();
   };
 
-  render(
-    <SaveBanner domain={domain} username={username} onClose={dismiss} />,
-    mount,
-  );
+  render(<SaveBanner domain={domain} username={username} onClose={dismiss} />, mount);
 
   // Auto-dismiss after 10s.
   setTimeout(dismiss, 10_000);
