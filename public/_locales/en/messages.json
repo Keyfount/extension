@@ -222,5 +222,16 @@
     "message": "Bumps the counter and recomputes a fresh password for this account. Use this when a site forces a change or you suspect a leak."
   },
   "detail_rotate_cta": { "message": "Rotate password" },
-  "detail_rotate_done": { "message": "Rotated" }
+  "detail_rotate_done": { "message": "Rotated" },
+
+  "detail_rename_warning_title": { "message": "Renaming changes the password" },
+  "detail_rename_warning_body": {
+    "message": "ItsMyPassword derives the password from your username. Saving will give you a brand-new password — you'll need to update it on the site too."
+  },
+  "detail_rename_preview_label": { "message": "Future password" },
+  "detail_rename_done_title": { "message": "Username updated" },
+  "detail_rename_done_body": {
+    "message": "Don't forget to set the new password on the site as well."
+  },
+  "detail_rename_done_copy": { "message": "Copy the new password" }
 }

@@ -29,6 +29,10 @@ export function AccountDetailScreen() {
   const [copied, setCopied] = useState<"password" | "username" | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [rotated, setRotated] = useState(false);
+  const [previewPassword, setPreviewPassword] = useState<string | null>(null);
+  const [previewRevealed, setPreviewRevealed] = useState(false);
+  const [previewCopied, setPreviewCopied] = useState(false);
+  const [postRenameToast, setPostRenameToast] = useState<string | null>(null);
 
   // Recompute password whenever the entry's profile changes (initial mount
   // + every profile mutation below).
@@ -58,7 +62,41 @@ export function AccountDetailScreen() {
   useEffect(() => {
     setUsernameDraft(entry?.username ?? "");
     setRenameError(null);
+    setPreviewPassword(null);
+    setPreviewRevealed(false);
   }, [entry?.domain, entry?.username]);
+
+  // Live preview of the password that would be produced after renaming.
+  // The deterministic algorithm derives from the username, so a rename
+  // necessarily changes the password — we surface that here before the
+  // user commits, with the new value ready to copy.
+  useEffect(() => {
+    if (entry === null) return;
+    const draft = usernameDraft.trim();
+    if (draft.length === 0 || draft === entry.username) {
+      setPreviewPassword(null);
+      return;
+    }
+    let cancelled = false;
+    const handle = setTimeout(() => {
+      send({
+        kind: "generate",
+        domain: entry.domain,
+        email: draft,
+        profile: entry.profile,
+      })
+        .then((res) => {
+          if (!cancelled) setPreviewPassword(res.password);
+        })
+        .catch(() => {
+          if (!cancelled) setPreviewPassword(null);
+        });
+    }, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(handle);
+    };
+  }, [usernameDraft, entry?.domain, entry?.username, entry?.profile]);
 
   const isActive = useMemo(
     () => entry !== null && entry.domain === activeDomain.value,
@@ -115,6 +153,21 @@ export function AccountDetailScreen() {
         e.domain === entry.domain && e.username === entry.username ? updated : e,
       );
       selectedAccount.value = updated;
+      // After rename, the derivation uses the new username so the
+      // password just changed. Remind the user to update it on the
+      // site too, and let them copy the freshly-computed value.
+      try {
+        const res2 = await send({
+          kind: "generate",
+          domain: updated.domain,
+          email: updated.username,
+          profile: updated.profile,
+        });
+        setPostRenameToast(res2.password);
+        setTimeout(() => setPostRenameToast(null), 12_000);
+      } catch {
+        /* swallowed — the detail page will recompute on next render */
+      }
     } catch (error) {
       setRenameError(error instanceof BackgroundError ? error.message : t("detail_rename_failed"));
     } finally {
@@ -293,6 +346,63 @@ export function AccountDetailScreen() {
             {renameError}
           </div>
         ) : null}
+
+        <AnimatePresence>
+          {usernameDirty ? (
+            <motion.div
+              key="rename-warn"
+              class="callout flex-col gap-2"
+              role="status"
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+            >
+              <strong>{t("detail_rename_warning_title")}</strong>
+              <span>{t("detail_rename_warning_body")}</span>
+              {previewPassword !== null ? (
+                <div class="flex flex-col gap-2 pt-1">
+                  <span class="field-label">{t("detail_rename_preview_label")}</span>
+                  <code
+                    class={
+                      previewRevealed
+                        ? "font-mono text-sm break-all select-all text-(--color-ink)"
+                        : "font-mono text-sm break-all select-all text-(--color-ink-muted) tracking-[0.15em]"
+                    }
+                  >
+                    {previewRevealed
+                      ? previewPassword
+                      : "•".repeat(Math.min(previewPassword.length, 24))}
+                  </code>
+                  <div class="flex gap-2 flex-wrap">
+                    <motion.button
+                      type="button"
+                      class="btn btn-ghost btn-sm flex-1"
+                      whileTap={TAP_SCALE}
+                      onClick={() => setPreviewRevealed((v) => !v)}
+                    >
+                      {previewRevealed ? <IconEyeOff size={14} /> : <IconEye size={14} />}
+                      {previewRevealed ? t("common_hide") : t("common_reveal")}
+                    </motion.button>
+                    <motion.button
+                      type="button"
+                      class="btn btn-ghost btn-sm flex-1"
+                      whileTap={TAP_SCALE}
+                      onClick={async () => {
+                        if (previewPassword === null) return;
+                        await copyWithAutoClear(previewPassword);
+                        setPreviewCopied(true);
+                        setTimeout(() => setPreviewCopied(false), 1500);
+                      }}
+                    >
+                      {previewCopied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+                      {previewCopied ? t("common_copied") : t("common_copy")}
+                    </motion.button>
+                  </div>
+                </div>
+              ) : null}
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
       </form>
 
       <motion.div
@@ -432,6 +542,34 @@ export function AccountDetailScreen() {
           >
             {t("common_copied")}
           </motion.span>
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {postRenameToast !== null ? (
+          <motion.div
+            key="rename-toast"
+            class="callout flex-col gap-2"
+            role="status"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+          >
+            <strong>{t("detail_rename_done_title")}</strong>
+            <span>{t("detail_rename_done_body")}</span>
+            <motion.button
+              type="button"
+              class="btn btn-sm self-start"
+              whileTap={TAP_SCALE}
+              onClick={async () => {
+                await copyWithAutoClear(postRenameToast);
+                setPostRenameToast(null);
+              }}
+            >
+              <IconCopy size={14} />
+              {t("detail_rename_done_copy")}
+            </motion.button>
+          </motion.div>
         ) : null}
       </AnimatePresence>
     </motion.div>

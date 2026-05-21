@@ -222,5 +222,16 @@
     "message": "Incrémente le compteur et recalcule un nouveau mot de passe pour ce compte. Utile quand un site impose un changement ou en cas de fuite."
   },
   "detail_rotate_cta": { "message": "Renouveler le mdp" },
-  "detail_rotate_done": { "message": "Renouvelé" }
+  "detail_rotate_done": { "message": "Renouvelé" },
+
+  "detail_rename_warning_title": { "message": "Renommer change aussi le mot de passe" },
+  "detail_rename_warning_body": {
+    "message": "ItsMyPassword dérive le mot de passe à partir de l'identifiant. Valider te donnera un tout nouveau mot de passe — pense à le mettre à jour sur le site aussi."
+  },
+  "detail_rename_preview_label": { "message": "Futur mot de passe" },
+  "detail_rename_done_title": { "message": "Identifiant mis à jour" },
+  "detail_rename_done_body": {
+    "message": "N'oublie pas de définir le nouveau mot de passe sur le site."
+  },
+  "detail_rename_done_copy": { "message": "Copier le nouveau mdp" }
 }
