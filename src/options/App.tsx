@@ -7,6 +7,7 @@ import { PinSection } from "./components/PinSection.js";
 import { DangerSection } from "./components/DangerSection.js";
 import { ProfileEditor } from "../shared/ProfileEditor.js";
 import { Logo } from "../shared/Logo.js";
+import { DotGrid } from "../shared/DotGrid.js";
 import { t } from "../shared/i18n.js";
 import { SOFT_SPRING } from "../shared/motion.js";
 import type { Profile } from "../shared/types.js";
@@ -43,76 +44,87 @@ export function App() {
 
   if (error !== null) {
     return (
-      <main class="max-w-3xl mx-auto px-6 pt-12 pb-16 flex flex-col gap-8">
-        <PageHeader />
-        <div class="callout callout-danger" role="alert">
-          {error}
-        </div>
-      </main>
+      <>
+        <DotGrid />
+        <main class="relative z-10 max-w-3xl mx-auto px-6 pt-12 pb-16 flex flex-col gap-8">
+          <PageHeader />
+          <div class="callout callout-danger" role="alert">
+            {error}
+          </div>
+        </main>
+      </>
     );
   }
 
   if (state === null) {
     return (
-      <main class="max-w-3xl mx-auto px-6 pt-12 pb-16 flex flex-col gap-8">
-        <PageHeader />
-        <div class="card">
-          <div class="skeleton h-5 w-2/5" />
-          <div class="skeleton h-3.5 w-3/4" />
-          <div class="skeleton h-16" />
-        </div>
-      </main>
+      <>
+        <DotGrid />
+        <main class="relative z-10 max-w-3xl mx-auto px-6 pt-12 pb-16 flex flex-col gap-8">
+          <PageHeader />
+          <div class="card">
+            <div class="skeleton h-5 w-2/5" />
+            <div class="skeleton h-3.5 w-3/4" />
+            <div class="skeleton h-16" />
+          </div>
+        </main>
+      </>
     );
   }
 
   return (
-    <motion.main
-      class="max-w-3xl mx-auto px-6 pt-12 pb-16 flex flex-col gap-8"
-      initial="initial"
-      animate="animate"
-      variants={{
-        initial: {},
-        animate: { transition: { staggerChildren: 0.06, delayChildren: 0.08 } },
-      }}
-    >
-      <PageHeader />
+    <>
+      <DotGrid />
+      <motion.main
+        class="relative z-10 max-w-3xl mx-auto px-6 pt-12 pb-16 flex flex-col gap-8"
+        initial="initial"
+        animate="animate"
+        variants={{
+          initial: {},
+          animate: { transition: { staggerChildren: 0.06, delayChildren: 0.08 } },
+        }}
+      >
+        <PageHeader />
 
-      <Section title={t("options_default_section")} hint={t("options_default_hint")}>
-        <ProfileEditor
-          profile={state.defaultProfile}
-          onChange={async (next) => {
-            await send({ kind: "setDefaultProfile", profile: next });
-            await refresh();
-          }}
-        />
-      </Section>
-
-      <Section title={t("options_autolock_section")} hint={t("options_autolock_hint")}>
-        <div class="flex items-center justify-between gap-4">
-          <span class="text-sm font-medium text-(--color-ink)">{t("options_autolock_label")}</span>
-          <input
-            class="input input-mono w-24"
-            type="number"
-            min={0}
-            max={1440}
-            value={state.autoLockMinutes}
-            onChange={async (e) => {
-              const minutes = Number.parseInt((e.target as HTMLInputElement).value, 10);
-              if (Number.isFinite(minutes)) {
-                await send({ kind: "setAutoLockMinutes", minutes });
-                await refresh();
-              }
+        <Section title={t("options_default_section")} hint={t("options_default_hint")}>
+          <ProfileEditor
+            profile={state.defaultProfile}
+            onChange={async (next) => {
+              await send({ kind: "setDefaultProfile", profile: next });
+              await refresh();
             }}
           />
-        </div>
-      </Section>
+        </Section>
 
-      <PinSection hasPin={state.hasPin} onChange={refresh} />
+        <Section title={t("options_autolock_section")} hint={t("options_autolock_hint")}>
+          <div class="flex items-center justify-between gap-4">
+            <span class="text-sm font-medium text-(--color-ink)">
+              {t("options_autolock_label")}
+            </span>
+            <input
+              class="input input-mono w-24"
+              type="number"
+              min={0}
+              max={1440}
+              value={state.autoLockMinutes}
+              onChange={async (e) => {
+                const minutes = Number.parseInt((e.target as HTMLInputElement).value, 10);
+                if (Number.isFinite(minutes)) {
+                  await send({ kind: "setAutoLockMinutes", minutes });
+                  await refresh();
+                }
+              }}
+            />
+          </div>
+        </Section>
 
-      <SitesSection sites={state.sites} onChange={refresh} />
+        <PinSection hasPin={state.hasPin} onChange={refresh} />
 
-      <DangerSection onChange={refresh} />
-    </motion.main>
+        <SitesSection sites={state.sites} onChange={refresh} />
+
+        <DangerSection onChange={refresh} />
+      </motion.main>
+    </>
   );
 }
 

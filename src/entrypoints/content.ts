@@ -26,12 +26,25 @@ export default defineContentScript({
       if (controller !== undefined) controller.open();
     };
 
+    // Close on Tab — leaving the field via keyboard should dismiss the panel,
+    // matching the behaviour of a click outside. Mouse focus loss is handled
+    // by the panel's own click-outside listener so the badge buttons keep
+    // working.
+    const keyHandler = (event: KeyboardEvent) => {
+      if (event.key !== "Tab") return;
+      const target = event.target;
+      if (!(target instanceof HTMLInputElement)) return;
+      const controller = badges.get(target);
+      if (controller !== undefined) controller.close();
+    };
+
     const attach = (field: HTMLInputElement) => {
       if (badges.has(field)) return;
       const controller = attachBadge(field);
       badges.set(field, controller);
       // Open the badge automatically on focus.
       field.addEventListener("focus", openHandler);
+      field.addEventListener("keydown", keyHandler);
     };
 
     const scan = () => {

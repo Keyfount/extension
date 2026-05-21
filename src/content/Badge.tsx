@@ -23,6 +23,7 @@ const HOST_TAG = "itsmypassword-badge";
 export interface BadgeController {
   update: () => void;
   open: () => void;
+  close: () => void;
   detach: () => void;
 }
 
@@ -39,9 +40,13 @@ export function attachBadge(password: HTMLInputElement): BadgeController {
   document.documentElement.appendChild(host);
 
   let openRef: (() => void) | null = null;
+  let closeRef: (() => void) | null = null;
   let updateRef: (() => void) | null = null;
   const setOpen = (fn: () => void) => {
     openRef = fn;
+  };
+  const setClose = (fn: () => void) => {
+    closeRef = fn;
   };
   const setUpdate = (fn: () => void) => {
     updateRef = fn;
@@ -73,7 +78,15 @@ export function attachBadge(password: HTMLInputElement): BadgeController {
     host.dataset.side = overflowsLeft && fitsOnRight ? "left" : "right";
   };
 
-  render(<Badge password={password} registerOpen={setOpen} registerUpdate={setUpdate} />, mount);
+  render(
+    <Badge
+      password={password}
+      registerOpen={setOpen}
+      registerClose={setClose}
+      registerUpdate={setUpdate}
+    />,
+    mount,
+  );
   position();
 
   const reposition = () => {
@@ -88,6 +101,9 @@ export function attachBadge(password: HTMLInputElement): BadgeController {
     open: () => {
       if (openRef !== null) openRef();
     },
+    close: () => {
+      if (closeRef !== null) closeRef();
+    },
     detach: () => {
       window.removeEventListener("scroll", reposition, { capture: true });
       window.removeEventListener("resize", reposition);
@@ -100,6 +116,7 @@ export function attachBadge(password: HTMLInputElement): BadgeController {
 interface BadgeProps {
   password: HTMLInputElement;
   registerOpen: (fn: () => void) => void;
+  registerClose: (fn: () => void) => void;
   registerUpdate: (fn: () => void) => void;
 }
 
@@ -113,7 +130,7 @@ type Status =
   | { kind: "ready"; password: string; domain: string }
   | { kind: "error"; message: string };
 
-function Badge({ password, registerOpen, registerUpdate }: BadgeProps) {
+function Badge({ password, registerOpen, registerClose, registerUpdate }: BadgeProps) {
   const [open, setOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
@@ -123,10 +140,14 @@ function Badge({ password, registerOpen, registerUpdate }: BadgeProps) {
 
   useEffect(() => {
     registerOpen(() => setOpen(true));
+    registerClose(() => {
+      setOpen(false);
+      setShowSettings(false);
+    });
     registerUpdate(() => {
       /* no-op */
     });
-  }, [registerOpen, registerUpdate]);
+  }, [registerOpen, registerClose, registerUpdate]);
 
   // Close the panel if the user clicks outside.
   useEffect(() => {

@@ -7,6 +7,7 @@ import { SettingsScreen } from "./components/SettingsScreen.js";
 import { SetupScreen } from "./components/SetupScreen.js";
 import { UnlockScreen } from "./components/UnlockScreen.js";
 import { registrableDomain } from "../shared/domain.js";
+import { DotGrid } from "../shared/DotGrid.js";
 import { activeDomain, activeEmail, errorMessage, fingerprint, hasPin, screen } from "./state.js";
 
 export function App() {
@@ -15,9 +16,14 @@ export function App() {
   }, []);
 
   return (
-    <AnimatePresence mode="wait" initial={false}>
-      {renderScreen()}
-    </AnimatePresence>
+    <>
+      <DotGrid />
+      <div class="relative z-10">
+        <AnimatePresence mode="wait" initial={false}>
+          {renderScreen()}
+        </AnimatePresence>
+      </div>
+    </>
   );
 }
 
