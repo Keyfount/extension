@@ -10,7 +10,14 @@ import { useCallback, useEffect, useState } from "preact/hooks";
 import { registrableDomain } from "../shared/domain.js";
 import { ProfileEditor } from "../shared/ProfileEditor.js";
 import { Logo } from "../shared/Logo.js";
-import { IconCheck, IconCopy, IconSettings, IconClose } from "../shared/icons.js";
+import {
+  IconCheck,
+  IconCopy,
+  IconEye,
+  IconEyeOff,
+  IconSettings,
+  IconClose,
+} from "../shared/icons.js";
 import { t } from "../shared/i18n.js";
 import type { AccountEntry, Profile } from "../shared/types.js";
 import { readUsername } from "./detect.js";
@@ -20,6 +27,18 @@ import badgeStyles from "./badge.css?inline";
 
 const HOST_TAG = "itsmypassword-badge";
 const BANNER_TAG = "itsmypassword-save-banner";
+
+/**
+ * Write a value to an input using the prototype setter so React/Vue/etc
+ * controlled components see it, then fire input + change events.
+ */
+function writeInput(input: HTMLInputElement, value: string): void {
+  const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
+  if (setter !== undefined) setter.call(input, value);
+  else input.value = value;
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+}
 
 /**
  * Show a top-right toast asking the user to save a freshly-filled account.
@@ -146,7 +165,17 @@ export interface BadgeController {
   detach: () => void;
 }
 
-export function attachBadge(password: HTMLInputElement): BadgeController {
+export interface AttachOptions {
+  password: HTMLInputElement;
+  username: HTMLInputElement | null;
+  /** Which field the trigger pin attaches to. Both fields are still
+   *  written to when Fill is invoked, regardless of the anchor. */
+  anchor: "password" | "username";
+}
+
+export function attachBadge(options: AttachOptions): BadgeController {
+  const { password, username, anchor } = options;
+  const anchorField = anchor === "username" && username !== null ? username : password;
   const host = document.createElement(HOST_TAG);
   host.style.cssText =
     "position: absolute; z-index: 2147483647; width: 0; height: 0; pointer-events: none; margin: 0; padding: 0;";
@@ -179,7 +208,7 @@ export function attachBadge(password: HTMLInputElement): BadgeController {
   const TRIGGER_OFFSET_FROM_FIELD = 28;
 
   const position = () => {
-    const rect = password.getBoundingClientRect();
+    const rect = anchorField.getBoundingClientRect();
     if (rect.width === 0 && rect.height === 0) {
       host.style.display = "none";
       return;
@@ -200,6 +229,8 @@ export function attachBadge(password: HTMLInputElement): BadgeController {
   render(
     <Badge
       password={password}
+      username={username}
+      anchor={anchor}
       registerOpen={setOpen}
       registerClose={setClose}
       registerUpdate={setUpdate}
@@ -234,6 +265,8 @@ export function attachBadge(password: HTMLInputElement): BadgeController {
 
 interface BadgeProps {
   password: HTMLInputElement;
+  username: HTMLInputElement | null;
+  anchor: "password" | "username";
   registerOpen: (fn: () => void) => void;
   registerClose: (fn: () => void) => void;
   registerUpdate: (fn: () => void) => void;
@@ -249,7 +282,14 @@ type Status =
   | { kind: "ready"; password: string; domain: string }
   | { kind: "error"; message: string };
 
-function Badge({ password, registerOpen, registerClose, registerUpdate }: BadgeProps) {
+function Badge({
+  password,
+  username,
+  anchor: _anchor,
+  registerOpen,
+  registerClose,
+  registerUpdate,
+}: BadgeProps) {
   const [open, setOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
@@ -353,13 +393,15 @@ function Badge({ password, registerOpen, registerClose, registerUpdate }: BadgeP
 
   const fill = useCallback(() => {
     if (status.kind !== "ready") return;
-    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
-    if (setter !== undefined) setter.call(password, status.password);
-    else password.value = status.password;
-    password.dispatchEvent(new Event("input", { bubbles: true }));
-    password.dispatchEvent(new Event("change", { bubbles: true }));
-
     const currentEmail = emailOverride.trim() || readUsername(password);
+    writeInput(password, status.password);
+    // Pre-fill the username/email field too when we have a value and the
+    // field is empty (or we explicitly know the username from a saved
+    // entry). Avoids the previous papercut where clicking Fill only
+    // dropped the password and left the email field blank.
+    if (username !== null && currentEmail.length > 0 && username.value.trim().length === 0) {
+      writeInput(username, currentEmail);
+    }
     const alreadySaved = saved.some(
       (e) => e.username === currentEmail && e.domain === status.domain,
     );
@@ -383,11 +425,16 @@ function Badge({ password, registerOpen, registerClose, registerUpdate }: BadgeP
   }, [password, status, historyEnabled, saved, emailOverride, profile]);
 
   const pickSaved = useCallback(
-    (username: string) => {
-      setEmailOverride(username);
-      void refresh({ email: username });
+    (pickedUsername: string) => {
+      setEmailOverride(pickedUsername);
+      // Reflect the choice in the page's username field too — saves the
+      // user a manual fill afterwards.
+      if (username !== null) {
+        writeInput(username, pickedUsername);
+      }
+      void refresh({ email: pickedUsername });
     },
-    [refresh],
+    [refresh, username],
   );
 
   const copy = useCallback(async () => {
@@ -556,18 +603,12 @@ function renderBody(props: BodyProps) {
 
   if (status.kind === "ready") {
     return (
-      <>
-        <div class="badge__password">{status.password}</div>
-        <div class="badge__actions">
-          <button type="button" class="badge__btn badge__btn--primary" onClick={props.fill}>
-            {t("common_fill")}
-          </button>
-          <button type="button" class="badge__btn" onClick={props.copy}>
-            {props.copied ? <IconCheck size={12} /> : <IconCopy size={12} />}
-            {props.copied ? t("common_copied") : t("common_copy")}
-          </button>
-        </div>
-      </>
+      <ReadyView
+        password={status.password}
+        copied={props.copied}
+        fill={props.fill}
+        copy={props.copy}
+      />
     );
   }
 
@@ -684,6 +725,48 @@ function UnlockForm({
         {t("common_unlock")}
       </button>
     </form>
+  );
+}
+
+function ReadyView({
+  password,
+  copied,
+  fill,
+  copy,
+}: {
+  password: string;
+  copied: boolean;
+  fill: () => void;
+  copy: () => void;
+}) {
+  const [revealed, setRevealed] = useState(false);
+  const masked = "•".repeat(Math.min(password.length, 24));
+  return (
+    <>
+      <div class="badge__password-row">
+        <code class={revealed ? "badge__password" : "badge__password badge__password--masked"}>
+          {revealed ? password : masked}
+        </code>
+        <button
+          type="button"
+          class="badge__icon-button"
+          onClick={() => setRevealed((v) => !v)}
+          aria-label={revealed ? t("common_hide") : t("common_reveal")}
+          title={revealed ? t("common_hide") : t("common_reveal")}
+        >
+          {revealed ? <IconEyeOff size={14} /> : <IconEye size={14} />}
+        </button>
+      </div>
+      <div class="badge__actions">
+        <button type="button" class="badge__btn badge__btn--primary" onClick={fill}>
+          {t("common_fill")}
+        </button>
+        <button type="button" class="badge__btn" onClick={copy}>
+          {copied ? <IconCheck size={12} /> : <IconCopy size={12} />}
+          {copied ? t("common_copied") : t("common_copy")}
+        </button>
+      </div>
+    </>
   );
 }
 

@@ -1,13 +1,14 @@
 /**
  * Content script entrypoint.
  *
- * Scans the page for password fields, attaches a floating badge to each, and
- * opens the panel automatically when the user focuses the field. Crypto and
- * the master password stay inside the background service worker.
+ * Scans the page for password fields, attaches a floating badge to each (and
+ * to its associated username/email field), and opens the panel automatically
+ * when either field receives focus. Crypto and the master password stay
+ * inside the background service worker.
  */
 import { defineContentScript } from "wxt/utils/define-content-script";
 import { attachBadge, showSaveBanner, type BadgeController } from "../content/Badge.js";
-import { findPasswordFields } from "../content/detect.js";
+import { findPasswordFields, findUsernameFieldFor } from "../content/detect.js";
 import { send } from "../content/messaging.js";
 import { registrableDomain } from "../shared/domain.js";
 
@@ -28,10 +29,6 @@ export default defineContentScript({
       if (controller !== undefined) controller.open();
     };
 
-    // Close on Tab — leaving the field via keyboard should dismiss the panel,
-    // matching the behaviour of a click outside. Mouse focus loss is handled
-    // by the panel's own click-outside listener so the badge buttons keep
-    // working.
     const keyHandler = (event: KeyboardEvent) => {
       if (event.key !== "Tab") return;
       const target = event.target;
@@ -40,17 +37,29 @@ export default defineContentScript({
       if (controller !== undefined) controller.close();
     };
 
-    const attach = (field: HTMLInputElement) => {
+    const attachTo = (
+      field: HTMLInputElement,
+      options: {
+        password: HTMLInputElement;
+        username: HTMLInputElement | null;
+        anchor: "password" | "username";
+      },
+    ) => {
       if (badges.has(field)) return;
-      const controller = attachBadge(field);
+      const controller = attachBadge(options);
       badges.set(field, controller);
-      // Open the badge automatically on focus.
       field.addEventListener("focus", openHandler);
       field.addEventListener("keydown", keyHandler);
     };
 
     const scan = () => {
-      for (const field of findPasswordFields()) attach(field);
+      for (const password of findPasswordFields()) {
+        const username = findUsernameFieldFor(password);
+        attachTo(password, { password, username, anchor: "password" });
+        if (username !== null) {
+          attachTo(username, { password, username, anchor: "username" });
+        }
+      }
     };
 
     scan();

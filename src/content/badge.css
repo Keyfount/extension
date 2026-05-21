@@ -172,7 +172,14 @@
   color: var(--color-ink);
 }
 
+.badge__password-row {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+
 .badge__password {
+  flex: 1;
   font-family: var(--font-mono);
   font-size: 13px;
   letter-spacing: 0;
@@ -184,6 +191,27 @@
   user-select: all;
   cursor: text;
   line-height: 1.4;
+  color: var(--color-ink);
+  min-width: 0;
+}
+
+.badge__password--masked {
+  color: var(--color-ink-muted);
+  letter-spacing: 0.15em;
+  user-select: none;
+}
+
+.badge__password-row > .badge__icon-button {
+  width: 32px;
+  height: auto;
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  background: var(--color-surface-elev);
+}
+
+.badge__password-row > .badge__icon-button:hover {
+  background: var(--color-surface-sunken);
+  border-color: var(--color-line-strong);
   color: var(--color-ink);
 }
 
