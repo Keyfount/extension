@@ -13,6 +13,9 @@ test.describe("popup setup, lock and unlock", () => {
     await passwordInputs.nth(1).fill("a-very-long-master-pass");
     await page.locator('button[type="submit"]').click();
 
+    // Setup wizard step 2: account-history opt-in. Skip it.
+    await page.locator("button.btn-ghost").click();
+
     await expect(page.locator(HEADER_ACTION).first()).toBeVisible({ timeout: 30_000 });
   });
 
@@ -23,6 +26,7 @@ test.describe("popup setup, lock and unlock", () => {
     await setupInputs.nth(0).fill("a-very-long-master-pass");
     await setupInputs.nth(1).fill("a-very-long-master-pass");
     await setup.locator('button[type="submit"]').click();
+    await setup.locator("button.btn-ghost").click();
     await expect(setup.locator(HEADER_ACTION).first()).toBeVisible({ timeout: 30_000 });
 
     const fingerprint = await setup.locator(".fingerprint").first().textContent();

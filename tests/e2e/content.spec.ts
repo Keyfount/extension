@@ -11,6 +11,7 @@ test("badge is injected next to password fields on a real http origin", async ({
   await inputs.nth(0).fill("a-very-long-master-pass");
   await inputs.nth(1).fill("a-very-long-master-pass");
   await popup.locator('button[type="submit"]').click();
+  await popup.locator("button.btn-ghost").click();
   await expect(popup.locator("header button[aria-label]").first()).toBeVisible({
     timeout: 30_000,
   });
