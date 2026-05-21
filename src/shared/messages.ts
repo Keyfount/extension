@@ -34,7 +34,10 @@ export type Request =
   | { kind: "setHistoryEnabled"; enabled: boolean }
   | { kind: "setPendingSave"; domain: string; username: string; profile?: Profile }
   | { kind: "getPendingSave"; domain: string }
-  | { kind: "clearPendingSave"; domain: string };
+  | { kind: "clearPendingSave"; domain: string }
+  | { kind: "setClipboardClearSeconds"; seconds: number }
+  | { kind: "armClipboardClear"; seconds?: number }
+  | { kind: "cancelClipboardClear" };
 
 // All responses share the same shape on success; we use a small set of
 // payload types and let TS pick the right one via the discriminator.
@@ -105,6 +108,7 @@ export interface GetStateResponse {
   hasPin: boolean;
   historyEnabled: boolean;
   faviconFallbackEnabled: boolean;
+  clipboardClearSeconds: number;
   sites: Record<string, Profile>;
 }
 

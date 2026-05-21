@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "preact/hooks";
 import { AnimatePresence, motion } from "framer-motion";
 import { send } from "../api.js";
+import { copyWithAutoClear } from "../clipboard.js";
 import { Header } from "./Header.js";
 import { AccountList } from "./AccountList.js";
 import {
@@ -102,7 +103,7 @@ export function MainScreen() {
   const copy = useCallback(async () => {
     if (generated.value === null) return;
     try {
-      await navigator.clipboard.writeText(generated.value);
+      await copyWithAutoClear(generated.value);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {

@@ -195,5 +195,18 @@
   "favicon_section_hint": {
     "message": "When the browser has no cached icon for a domain, ItsMyPassword can ask Google's public favicon service for it. Turn this off to stay 100% local (initials placeholder)."
   },
-  "favicon_toggle_label": { "message": "Fetch missing icons from Google" }
+  "favicon_toggle_label": { "message": "Fetch missing icons from Google" },
+
+  "clipboard_section_title": { "message": "Clipboard auto-clear" },
+  "clipboard_section_hint": {
+    "message": "Empty the clipboard automatically after a copied password or username sits there for too long. Resets the timer on each new copy."
+  },
+  "clipboard_off": { "message": "Off" },
+  "clipboard_10s": { "message": "10s" },
+  "clipboard_30s": { "message": "30s" },
+  "clipboard_60s": { "message": "1 min" },
+  "clipboard_120s": { "message": "2 min" },
+
+  "ctx_open_vault": { "message": "Open ItsMyPassword" },
+  "ctx_fill": { "message": "Fill with ItsMyPassword" }
 }

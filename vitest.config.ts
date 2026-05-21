@@ -24,6 +24,8 @@ export default defineConfig({
         // Badge and messaging are exercised via E2E (Playwright);
         // their DOM-mutation side effects don't lend themselves to unit tests.
         "src/content/messaging.ts",
+        // Pure chrome.contextMenus + chrome.action wiring with no logic.
+        "src/background/context-menus.ts",
       ],
       thresholds: {
         statements: 90,

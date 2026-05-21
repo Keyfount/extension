@@ -16,7 +16,7 @@ export default defineConfig({
     name: "__MSG_extName__",
     description: "__MSG_extDescription__",
     default_locale: "en",
-    permissions: ["storage", "activeTab", "scripting", "alarms", "favicon"],
+    permissions: ["storage", "activeTab", "scripting", "alarms", "favicon", "contextMenus"],
     host_permissions: [],
     icons: {
       16: "icons/icon-16.png",

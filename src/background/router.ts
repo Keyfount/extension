@@ -21,6 +21,7 @@ import {
   type ProfileFallback,
 } from "./accounts.js";
 import { clearPendingSave, getPendingSave, setPendingSave } from "./pending.js";
+import { armClipboardClear, cancelClipboardClear } from "./clipboard.js";
 import { effectiveProfile, loadState, updateState, wipeAll, type StoredState } from "./storage.js";
 import { lock, readMaster, status as sessionStatus, unlock } from "./session.js";
 import type {
@@ -129,6 +130,29 @@ export async function handleRequest(request: Request): Promise<AnyResponse> {
       }
       case "clearPendingSave":
         await clearPendingSave(request.domain);
+        return { ok: true };
+      case "setClipboardClearSeconds": {
+        const value = request.seconds;
+        if (!Number.isFinite(value) || value < 0 || value > 600) {
+          return {
+            ok: false,
+            error: "clipboardClearSeconds must be an integer between 0 and 600",
+          };
+        }
+        await updateState((s) => ({ ...s, clipboardClearSeconds: Math.round(value) }));
+        return { ok: true };
+      }
+      case "armClipboardClear": {
+        let seconds = request.seconds;
+        if (seconds === undefined) {
+          const s = await loadState();
+          seconds = s.clipboardClearSeconds;
+        }
+        await armClipboardClear(seconds);
+        return { ok: true };
+      }
+      case "cancelClipboardClear":
+        await cancelClipboardClear();
         return { ok: true };
       case "wipe":
         await wipeAll();
@@ -270,6 +294,7 @@ async function handleGetState(): Promise<GetStateResponse> {
     hasPin: state.pin !== undefined,
     historyEnabled: state.historyEnabled,
     faviconFallbackEnabled: state.faviconFallbackEnabled,
+    clipboardClearSeconds: state.clipboardClearSeconds,
     sites: state.sites,
   };
 }

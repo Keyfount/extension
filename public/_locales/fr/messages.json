@@ -195,5 +195,18 @@
   "favicon_section_hint": {
     "message": "Quand le navigateur n'a pas l'icône d'un site en cache, ItsMyPassword peut la demander au service public de Google. Désactive pour rester 100% local (placeholder à base d'initiales)."
   },
-  "favicon_toggle_label": { "message": "Récupérer les icônes manquantes via Google" }
+  "favicon_toggle_label": { "message": "Récupérer les icônes manquantes via Google" },
+
+  "clipboard_section_title": { "message": "Vidage automatique du presse-papier" },
+  "clipboard_section_hint": {
+    "message": "Vide le presse-papier après ce délai si un mot de passe ou un identifiant y a été copié. Le compteur repart à chaque nouvelle copie."
+  },
+  "clipboard_off": { "message": "Off" },
+  "clipboard_10s": { "message": "10s" },
+  "clipboard_30s": { "message": "30s" },
+  "clipboard_60s": { "message": "1 min" },
+  "clipboard_120s": { "message": "2 min" },
+
+  "ctx_open_vault": { "message": "Ouvrir ItsMyPassword" },
+  "ctx_fill": { "message": "Remplir avec ItsMyPassword" }
 }

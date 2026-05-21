@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
 import { AnimatePresence, motion } from "framer-motion";
 import { send, BackgroundError } from "../api.js";
+import { copyWithAutoClear } from "../clipboard.js";
 import { Header } from "./Header.js";
 import { Favicon } from "./Favicon.js";
 import { IconCheck, IconChevronRight, IconCopy, IconEye, IconEyeOff } from "../../shared/icons.js";
@@ -143,7 +144,7 @@ export function AccountDetailScreen() {
 
   const copyText = async (text: string, kind: "password" | "username") => {
     try {
-      await navigator.clipboard.writeText(text);
+      await copyWithAutoClear(text);
       setCopied(kind);
       setTimeout(() => setCopied(null), 1500);
     } catch {

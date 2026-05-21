@@ -68,6 +68,23 @@ describe("loadState", () => {
     expect(state.historyEnabled).toBe(true);
     expect(state.faviconFallbackEnabled).toBe(true);
   });
+
+  it("migrates v3 state to v4 by adding the clipboard auto-clear default", async () => {
+    await chrome.storage.local.set({
+      "state.v1": {
+        schemaVersion: 3,
+        defaultProfile: DEFAULT_RANDOM_PROFILE,
+        autoLockMinutes: 15,
+        historyEnabled: true,
+        faviconFallbackEnabled: false,
+        sites: {},
+      },
+    });
+    const state = await loadState();
+    expect(state.schemaVersion).toBe(SCHEMA_VERSION);
+    expect(state.faviconFallbackEnabled).toBe(false);
+    expect(state.clipboardClearSeconds).toBe(30);
+  });
 });
 
 describe("saveState / updateState", () => {
@@ -78,6 +95,7 @@ describe("saveState / updateState", () => {
       autoLockMinutes: 30,
       historyEnabled: false,
       faviconFallbackEnabled: true,
+      clipboardClearSeconds: 30,
       fingerprint: "abc",
       sites: { "example.com": DEFAULT_RANDOM_PROFILE },
     });
@@ -116,6 +134,7 @@ describe("wipeAll", () => {
       autoLockMinutes: 15,
       historyEnabled: false,
       faviconFallbackEnabled: true,
+      clipboardClearSeconds: 30,
       fingerprint: "x",
       sites: {},
     });

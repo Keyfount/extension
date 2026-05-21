@@ -10,9 +10,11 @@ import { UnlockScreen } from "./components/UnlockScreen.js";
 import { DotGrid } from "../shared/DotGrid.js";
 import { errorMessage, fingerprint, hasPin, screen } from "./state.js";
 import { loadVaultData } from "./vault.js";
+import { installClipboardClearListener } from "./clipboard.js";
 
 export function App() {
   useEffect(() => {
+    installClipboardClearListener();
     void bootstrap();
   }, []);
 

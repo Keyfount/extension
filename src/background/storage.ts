@@ -9,7 +9,10 @@
  */
 import { DEFAULT_RANDOM_PROFILE, type Profile } from "../shared/types.js";
 
-export const SCHEMA_VERSION = 3 as const;
+export const SCHEMA_VERSION = 4 as const;
+
+/** Default number of seconds before the clipboard is auto-wiped. */
+export const DEFAULT_CLIPBOARD_CLEAR_SECONDS = 30;
 
 export interface PinBlob {
   /** AES-GCM ciphertext of the master, base64 (RFC 4648, no padding). */
@@ -34,6 +37,11 @@ export interface StoredState {
    * who don't want to leak their domain list to Google can disable it.
    */
   faviconFallbackEnabled: boolean;
+  /**
+   * Seconds to keep a copied password on the clipboard before the
+   * background wipes it. 0 disables the auto-clear.
+   */
+  clipboardClearSeconds: number;
   /** 3-byte master fingerprint, hex-encoded. Present after first-run setup. */
   fingerprint?: string;
   /** Present iff PIN mode is enabled. */
@@ -50,6 +58,7 @@ export const DEFAULT_STATE: StoredState = Object.freeze({
   autoLockMinutes: 15,
   historyEnabled: false,
   faviconFallbackEnabled: true,
+  clipboardClearSeconds: DEFAULT_CLIPBOARD_CLEAR_SECONDS,
   sites: {},
 }) as StoredState;
 
@@ -66,7 +75,7 @@ export async function loadState(): Promise<StoredState> {
     schemaVersion?: number;
   };
   const rawSchema = state.schemaVersion;
-  if (rawSchema !== 1 && rawSchema !== 2 && rawSchema !== SCHEMA_VERSION) {
+  if (rawSchema !== 1 && rawSchema !== 2 && rawSchema !== 3 && rawSchema !== SCHEMA_VERSION) {
     return cloneDefault();
   }
   const migrated: StoredState = {
@@ -75,6 +84,7 @@ export async function loadState(): Promise<StoredState> {
     autoLockMinutes: state.autoLockMinutes ?? 15,
     historyEnabled: state.historyEnabled ?? false,
     faviconFallbackEnabled: state.faviconFallbackEnabled ?? true,
+    clipboardClearSeconds: state.clipboardClearSeconds ?? DEFAULT_CLIPBOARD_CLEAR_SECONDS,
     ...(state.fingerprint !== undefined ? { fingerprint: state.fingerprint } : {}),
     ...(state.pin !== undefined ? { pin: state.pin } : {}),
     sites: state.sites ?? {},
@@ -120,6 +130,7 @@ function cloneDefault(): StoredState {
     autoLockMinutes: DEFAULT_STATE.autoLockMinutes,
     historyEnabled: DEFAULT_STATE.historyEnabled,
     faviconFallbackEnabled: DEFAULT_STATE.faviconFallbackEnabled,
+    clipboardClearSeconds: DEFAULT_STATE.clipboardClearSeconds,
     sites: {},
   };
 }

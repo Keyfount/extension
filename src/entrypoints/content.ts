@@ -86,6 +86,43 @@ export default defineContentScript({
       }
     }
 
+    // Context-menu "Fill with ItsMyPassword" → focus the first password
+    // field on the page so its badge opens; the panel then handles the
+    // generate + fill flow normally.
+    chrome.runtime.onMessage.addListener((message) => {
+      if (
+        message !== null &&
+        typeof message === "object" &&
+        "kind" in message &&
+        (message as { kind: unknown }).kind === "clipboard:clear"
+      ) {
+        // Best-effort wipe from the focused tab when the popup is closed.
+        navigator.clipboard.writeText("").catch(() => {
+          /* page may not have clipboard-write permission; ignore */
+        });
+        return false;
+      }
+      if (
+        message !== null &&
+        typeof message === "object" &&
+        "kind" in message &&
+        (message as { kind: unknown }).kind === "itsmypassword:fill-here"
+      ) {
+        const targets = findPasswordFields();
+        const target = targets[0];
+        if (target !== undefined) {
+          try {
+            target.focus();
+          } catch {
+            /* swallowed */
+          }
+          const controller = badges.get(target);
+          if (controller !== undefined) controller.open();
+        }
+      }
+      return false;
+    });
+
     const observer = new MutationObserver((mutations) => {
       let needsScan = false;
       for (const mutation of mutations) {

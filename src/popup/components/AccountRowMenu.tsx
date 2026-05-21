@@ -6,6 +6,7 @@
  */
 import { useEffect, useRef, useState } from "preact/hooks";
 import { send } from "../api.js";
+import { copyWithAutoClear } from "../clipboard.js";
 import { t } from "../../shared/i18n.js";
 import { IconCheck, IconMore } from "../../shared/icons.js";
 import type { AccountEntry } from "../../shared/types.js";
@@ -35,7 +36,7 @@ export function AccountRowMenu({ entry }: Props) {
   const copyUsername = async (event: Event) => {
     event.stopPropagation();
     try {
-      await navigator.clipboard.writeText(entry.username);
+      await copyWithAutoClear(entry.username);
       setCopied("username");
       setTimeout(() => {
         setCopied(null);
@@ -55,7 +56,7 @@ export function AccountRowMenu({ entry }: Props) {
         email: entry.username,
         profile: entry.profile,
       });
-      await navigator.clipboard.writeText(res.password);
+      await copyWithAutoClear(res.password);
       setCopied("password");
       setTimeout(() => {
         setCopied(null);

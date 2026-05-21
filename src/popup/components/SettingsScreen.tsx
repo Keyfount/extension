@@ -10,6 +10,7 @@ import { DangerSection } from "../../options/components/DangerSection.js";
 import { HistorySection } from "../../options/components/HistorySection.js";
 import { AccountsSection } from "../../options/components/AccountsSection.js";
 import { FaviconSection } from "./FaviconSection.js";
+import { ClipboardSection } from "./ClipboardSection.js";
 import { IconChevronRight } from "../../shared/icons.js";
 import { t } from "../../shared/i18n.js";
 import { SOFT_SPRING, TAP_SCALE } from "../../shared/motion.js";
@@ -22,6 +23,7 @@ interface State {
   hasPin: boolean;
   historyEnabled: boolean;
   faviconFallbackEnabled: boolean;
+  clipboardClearSeconds: number;
   accountsCount: number;
   sites: Record<string, Profile>;
 }
@@ -52,6 +54,7 @@ export function SettingsScreen() {
         hasPin: res.hasPin,
         historyEnabled: res.historyEnabled,
         faviconFallbackEnabled: res.faviconFallbackEnabled,
+        clipboardClearSeconds: res.clipboardClearSeconds,
         accountsCount,
         sites: res.sites,
       });
@@ -164,6 +167,7 @@ export function SettingsScreen() {
             />
             <AccountsSection enabled={state.historyEnabled} />
             <FaviconSection enabled={state.faviconFallbackEnabled} onChange={refresh} />
+            <ClipboardSection seconds={state.clipboardClearSeconds} onChange={refresh} />
             <SitesSection sites={state.sites} onChange={refresh} />
             <DangerSection onChange={refresh} />
           </motion.div>

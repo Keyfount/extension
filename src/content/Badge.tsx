@@ -441,6 +441,11 @@ function Badge({
     if (status.kind !== "ready") return;
     try {
       await navigator.clipboard.writeText(status.password);
+      try {
+        await send({ kind: "armClipboardClear" });
+      } catch {
+        /* auto-clear is a nicety; ignore failures */
+      }
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
