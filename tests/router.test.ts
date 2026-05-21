@@ -209,3 +209,50 @@ describe("router — PIN mode", () => {
     expect(state.hasPin).toBe(false);
   });
 }, 120_000);
+
+describe("router — account history", () => {
+  it("listAccounts returns locked when no session is open", async () => {
+    const response = await handleRequest({ kind: "listAccounts" });
+    expect(response).toEqual({ ok: false, error: "locked" });
+  });
+
+  it("recordAccount + listAccounts round-trip after unlock", async () => {
+    await handleRequest({ kind: "setup", master: "correct-horse-battery" });
+    await handleRequest({ kind: "setHistoryEnabled", enabled: true });
+    const rec = await handleRequest({
+      kind: "recordAccount",
+      domain: "example.com",
+      username: "alice@x.com",
+    });
+    expect(rec).toMatchObject({ ok: true, entry: { domain: "example.com" } });
+    const list = await handleRequest({ kind: "listAccounts", domain: "example.com" });
+    if (list.ok === false) throw new Error(list.error);
+    expect(list.entries).toHaveLength(1);
+    expect(list.entries[0]).toMatchObject({ username: "alice@x.com" });
+  });
+
+  it("setHistoryEnabled false wipes the stored entries", async () => {
+    await handleRequest({ kind: "setup", master: "correct-horse-battery" });
+    await handleRequest({ kind: "setHistoryEnabled", enabled: true });
+    await handleRequest({
+      kind: "recordAccount",
+      domain: "example.com",
+      username: "alice@x.com",
+    });
+    const off = await handleRequest({ kind: "setHistoryEnabled", enabled: false });
+    expect(off).toMatchObject({ ok: true });
+    const list = await handleRequest({ kind: "listAccounts" });
+    if (list.ok === false) throw new Error(list.error);
+    expect(list.entries).toEqual([]);
+  });
+
+  it("recordAccount refuses when historyEnabled is false", async () => {
+    await handleRequest({ kind: "setup", master: "correct-horse-battery" });
+    const res = await handleRequest({
+      kind: "recordAccount",
+      domain: "example.com",
+      username: "alice@x.com",
+    });
+    expect(res).toEqual({ ok: false, error: "history disabled" });
+  });
+}, 120_000);

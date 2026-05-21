@@ -11,18 +11,27 @@ import {
   fingerprintMaster,
   formatFingerprint,
 } from "./crypto/index.js";
+import {
+  deleteAccount,
+  listAccounts,
+  recordAccount,
+  wipeAccounts,
+} from "./accounts.js";
 import { effectiveProfile, loadState, updateState, wipeAll, type StoredState } from "./storage.js";
 import { lock, readMaster, status as sessionStatus, unlock } from "./session.js";
 import type {
   ErrorResponse,
+  FingerprintResponse,
   GenerateResponse,
   GetProfileResponse,
   GetStateResponse,
+  ListAccountsResponse,
+  OkResponse,
+  RecordAccountResponse,
   Request,
+  SetHistoryEnabledResponse,
   StatusResponse,
   UnlockResponse,
-  OkResponse,
-  FingerprintResponse,
 } from "../shared/messages.js";
 import { DEFAULT_RANDOM_PROFILE, type Profile } from "../shared/types.js";
 
@@ -34,7 +43,10 @@ type AnyResponse =
   | FingerprintResponse
   | GenerateResponse
   | GetProfileResponse
-  | GetStateResponse;
+  | GetStateResponse
+  | ListAccountsResponse
+  | RecordAccountResponse
+  | SetHistoryEnabledResponse;
 
 export async function handleRequest(request: Request): Promise<AnyResponse> {
   try {
@@ -86,8 +98,18 @@ export async function handleRequest(request: Request): Promise<AnyResponse> {
         return { ok: true };
       case "getState":
         return await handleGetState();
+      case "listAccounts":
+        return await handleListAccounts(request.domain);
+      case "recordAccount":
+        return await handleRecordAccount(request.domain, request.username);
+      case "deleteAccount":
+        await handleDeleteAccount(request.domain, request.username);
+        return { ok: true };
+      case "setHistoryEnabled":
+        return await handleSetHistoryEnabled(request.enabled);
       case "wipe":
         await wipeAll();
+        await wipeAccounts();
         await lock();
         return { ok: true };
     }
@@ -223,6 +245,46 @@ async function handleGetState(): Promise<GetStateResponse> {
     defaultProfile: state.defaultProfile ?? DEFAULT_RANDOM_PROFILE,
     autoLockMinutes: state.autoLockMinutes,
     hasPin: state.pin !== undefined,
+    historyEnabled: state.historyEnabled,
     sites: state.sites,
   };
+}
+
+async function handleListAccounts(
+  domain: string | undefined,
+): Promise<ListAccountsResponse | ErrorResponse> {
+  const master = await readMaster();
+  if (master === null) return { ok: false, error: "locked" };
+  const entries = await listAccounts(master, domain);
+  return { ok: true, entries };
+}
+
+async function handleRecordAccount(
+  domain: string,
+  username: string,
+): Promise<RecordAccountResponse | ErrorResponse> {
+  const master = await readMaster();
+  if (master === null) return { ok: false, error: "locked" };
+  const state = await loadState();
+  if (!state.historyEnabled) return { ok: false, error: "history disabled" };
+  const trimmed = username.trim();
+  if (trimmed.length === 0) return { ok: false, error: "username required" };
+  if (domain.length === 0) return { ok: false, error: "domain required" };
+  const entry = await recordAccount(master, domain, trimmed);
+  return { ok: true, entry };
+}
+
+async function handleDeleteAccount(domain: string, username: string): Promise<void> {
+  const master = await readMaster();
+  if (master === null) return;
+  await deleteAccount(master, domain, username);
+}
+
+async function handleSetHistoryEnabled(
+  enabled: boolean,
+): Promise<SetHistoryEnabledResponse | ErrorResponse> {
+  let cleared = 0;
+  if (!enabled) cleared = await wipeAccounts();
+  await updateState((s) => ({ ...s, historyEnabled: enabled }));
+  return { ok: true, cleared };
 }
