@@ -8,6 +8,7 @@ import {
   busy,
   errorMessage,
   fingerprint as fingerprintSignal,
+  historyEnabled,
   livePreview,
   screen,
 } from "../state.js";
@@ -17,6 +18,7 @@ const MIN_LENGTH = 12;
 export function SetupScreen() {
   const [master, setMaster] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [step, setStep] = useState<"master" | "history">("master");
   const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -56,7 +58,7 @@ export function SetupScreen() {
       try {
         const response = await send({ kind: "setup", master });
         fingerprintSignal.value = response.fingerprint;
-        screen.value = "main";
+        setStep("history");
       } catch (error) {
         errorMessage.value = error instanceof Error ? error.message : "setup failed";
       } finally {
@@ -65,6 +67,46 @@ export function SetupScreen() {
     },
     [master, confirm],
   );
+
+  if (step === "history") {
+    return (
+      <motion.div
+        class="flex flex-col gap-4 p-5"
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={SOFT_SPRING}
+      >
+        <Header subtitle={t("history_setup_title")} />
+        <p class="text-(--color-ink-muted) text-sm leading-relaxed">
+          {t("history_setup_body")}
+        </p>
+        <div class="flex gap-2">
+          <motion.button
+            type="button"
+            class="btn flex-1"
+            whileTap={TAP_SCALE}
+            onClick={async () => {
+              await send({ kind: "setHistoryEnabled", enabled: true });
+              historyEnabled.value = true;
+              screen.value = "main";
+            }}
+          >
+            {t("history_setup_enable")}
+          </motion.button>
+          <motion.button
+            type="button"
+            class="btn btn-ghost flex-1"
+            whileTap={TAP_SCALE}
+            onClick={() => {
+              screen.value = "main";
+            }}
+          >
+            {t("history_setup_skip")}
+          </motion.button>
+        </div>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.form
