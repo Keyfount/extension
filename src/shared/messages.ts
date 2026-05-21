@@ -37,7 +37,9 @@ export type Request =
   | { kind: "clearPendingSave"; domain: string }
   | { kind: "setClipboardClearSeconds"; seconds: number }
   | { kind: "armClipboardClear"; seconds?: number }
-  | { kind: "cancelClipboardClear" };
+  | { kind: "cancelClipboardClear" }
+  | { kind: "setRecentUsername"; domain: string; username: string }
+  | { kind: "getRecentUsername"; domain: string };
 
 // All responses share the same shape on success; we use a small set of
 // payload types and let TS pick the right one via the discriminator.
@@ -61,7 +63,9 @@ export type Response<T extends Request> = T extends { kind: "status" }
                   ? SetHistoryEnabledResponse
                   : T extends { kind: "getPendingSave" }
                     ? GetPendingSaveResponse
-                    : OkResponse;
+                    : T extends { kind: "getRecentUsername" }
+                      ? GetRecentUsernameResponse
+                      : OkResponse;
 
 export interface OkResponse {
   ok: true;
@@ -130,6 +134,11 @@ export interface SetHistoryEnabledResponse {
 export interface GetPendingSaveResponse {
   ok: true;
   entry: { username: string; profile?: Profile } | null;
+}
+
+export interface GetRecentUsernameResponse {
+  ok: true;
+  username: string | null;
 }
 
 /** Discriminator for `chrome.runtime.onMessage` callbacks. */

@@ -362,7 +362,25 @@ function Badge({
           setHistoryEnabled(false);
           setSaved([]);
         }
-        const email = override?.email ?? (emailOverride.trim() || readUsername(password));
+        let email = override?.email ?? (emailOverride.trim() || readUsername(password));
+        if (email.length === 0) {
+          // Sign-up flows often split email (page 1) and password (page 2).
+          // The content-script entry stashes the email the user typed on
+          // any previous page of the same domain; if we still have nothing
+          // to derive from, pick it up here as a last-resort fallback.
+          try {
+            const recent = await send({ kind: "getRecentUsername", domain });
+            if (recent.username !== null) {
+              email = recent.username;
+              setEmailOverride(recent.username);
+              if (username !== null && username.value.trim().length === 0) {
+                writeInput(username, recent.username);
+              }
+            }
+          } catch {
+            /* swallowed */
+          }
+        }
         if (email.length === 0) {
           setStatus({ kind: "no-email", domain });
           return;

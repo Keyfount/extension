@@ -37,6 +37,24 @@ export default defineContentScript({
       if (controller !== undefined) controller.close();
     };
 
+    // Debounced cache of what the user typed in each username field, so a
+    // sign-up flow that splits email (page 1) from password (page 2) can
+    // pick up the email on page 2.
+    const lastSentByField = new WeakMap<HTMLInputElement, string>();
+    const inputHandler = (event: Event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLInputElement)) return;
+      const value = target.value.trim();
+      if (value.length === 0) return;
+      if (lastSentByField.get(target) === value) return;
+      lastSentByField.set(target, value);
+      const domain = registrableDomain(window.location.href);
+      if (domain === null) return;
+      send({ kind: "setRecentUsername", domain, username: value }).catch(() => {
+        /* swallowed */
+      });
+    };
+
     const attachTo = (
       field: HTMLInputElement,
       options: {
@@ -50,6 +68,10 @@ export default defineContentScript({
       badges.set(field, controller);
       field.addEventListener("focus", openHandler);
       field.addEventListener("keydown", keyHandler);
+      if (options.anchor === "username") {
+        field.addEventListener("blur", inputHandler);
+        field.addEventListener("change", inputHandler);
+      }
     };
 
     const scan = () => {
@@ -59,6 +81,18 @@ export default defineContentScript({
         if (username !== null) {
           attachTo(username, { password, username, anchor: "username" });
         }
+      }
+      // Also watch standalone email/username inputs that don't have a
+      // sibling password field (sign-up page 1) so we can stash the value
+      // for the next page.
+      const standalone = document.querySelectorAll<HTMLInputElement>(
+        'input[type="email"], input[autocomplete="email"], input[autocomplete="username"]',
+      );
+      for (const el of standalone) {
+        if (lastSentByField.has(el)) continue;
+        lastSentByField.set(el, el.value.trim());
+        el.addEventListener("blur", inputHandler);
+        el.addEventListener("change", inputHandler);
       }
     };
 

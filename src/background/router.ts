@@ -21,6 +21,7 @@ import {
   type ProfileFallback,
 } from "./accounts.js";
 import { clearPendingSave, getPendingSave, setPendingSave } from "./pending.js";
+import { getRecentUsername, setRecentUsername } from "./recent-username.js";
 import { armClipboardClear, cancelClipboardClear } from "./clipboard.js";
 import { effectiveProfile, loadState, updateState, wipeAll, type StoredState } from "./storage.js";
 import { lock, readMaster, status as sessionStatus, unlock } from "./session.js";
@@ -30,6 +31,7 @@ import type {
   GenerateResponse,
   GetPendingSaveResponse,
   GetProfileResponse,
+  GetRecentUsernameResponse,
   GetStateResponse,
   ListAccountsResponse,
   OkResponse,
@@ -53,7 +55,8 @@ type AnyResponse =
   | ListAccountsResponse
   | RecordAccountResponse
   | SetHistoryEnabledResponse
-  | GetPendingSaveResponse;
+  | GetPendingSaveResponse
+  | GetRecentUsernameResponse;
 
 export async function handleRequest(request: Request): Promise<AnyResponse> {
   try {
@@ -154,6 +157,13 @@ export async function handleRequest(request: Request): Promise<AnyResponse> {
       case "cancelClipboardClear":
         await cancelClipboardClear();
         return { ok: true };
+      case "setRecentUsername":
+        await setRecentUsername(request.domain, request.username);
+        return { ok: true };
+      case "getRecentUsername": {
+        const username = await getRecentUsername(request.domain);
+        return { ok: true, username };
+      }
       case "wipe":
         await wipeAll();
         await wipeAccounts();

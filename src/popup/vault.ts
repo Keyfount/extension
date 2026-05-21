@@ -92,4 +92,17 @@ export async function loadVaultData(): Promise<void> {
       /* page not scriptable */
     }
   }
+
+  // Sign-up multi-page fallback: nothing in the current tab, but the
+  // content script may have stashed the email the user typed earlier.
+  if (activeEmail.value.length === 0 && domain !== null) {
+    try {
+      const recent = await send({ kind: "getRecentUsername", domain });
+      if (recent.username !== null) {
+        activeEmail.value = recent.username;
+      }
+    } catch {
+      /* swallowed */
+    }
+  }
 }
