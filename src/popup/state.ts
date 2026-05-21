@@ -5,6 +5,7 @@
  * the latest values without re-renders cascading through the tree.
  */
 import { computed, signal } from "@preact/signals";
+import type { AccountEntry } from "../shared/types.js";
 
 export type Screen = "loading" | "setup" | "unlock" | "main" | "settings";
 
@@ -33,6 +34,12 @@ export const errorMessage = signal<string | null>(null);
 
 /** Whether the user has enabled PIN unlock. */
 export const hasPin = signal<boolean>(false);
+
+/** Opt-in account-history flag, mirrored from background state. */
+export const historyEnabled = signal<boolean>(false);
+
+/** Saved accounts for the active domain, populated on bootstrap. */
+export const savedAccounts = signal<AccountEntry[]>([]);
 
 export const canGenerate = computed(
   () => activeDomain.value !== null && activeEmail.value.trim().length > 0,

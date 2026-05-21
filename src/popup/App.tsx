@@ -8,7 +8,16 @@ import { SetupScreen } from "./components/SetupScreen.js";
 import { UnlockScreen } from "./components/UnlockScreen.js";
 import { registrableDomain } from "../shared/domain.js";
 import { DotGrid } from "../shared/DotGrid.js";
-import { activeDomain, activeEmail, errorMessage, fingerprint, hasPin, screen } from "./state.js";
+import {
+  activeDomain,
+  activeEmail,
+  errorMessage,
+  fingerprint,
+  hasPin,
+  historyEnabled,
+  savedAccounts,
+  screen,
+} from "./state.js";
 
 export function App() {
   useEffect(() => {
@@ -50,8 +59,10 @@ async function bootstrap() {
     try {
       const state = await send({ kind: "getState" });
       hasPin.value = state.hasPin;
+      historyEnabled.value = state.historyEnabled;
     } catch {
       hasPin.value = false;
+      historyEnabled.value = false;
     }
 
     if (status.isFirstRun) {
@@ -67,6 +78,15 @@ async function bootstrap() {
       activeDomain.value = registrableDomain(tab.url);
     }
     activeEmail.value = "";
+    savedAccounts.value = [];
+    if (historyEnabled.value && activeDomain.value !== null && !status.locked) {
+      try {
+        const res = await send({ kind: "listAccounts", domain: activeDomain.value });
+        savedAccounts.value = res.entries;
+      } catch {
+        savedAccounts.value = [];
+      }
+    }
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : "could not initialise";
     screen.value = "unlock";
