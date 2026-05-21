@@ -30,12 +30,13 @@ import {
   screen,
 } from "../state.js";
 
-type Mode = "list" | "generate";
-
 export function MainScreen() {
-  const initialMode: Mode =
-    historyEnabled.value && allAccounts.value.length > 0 ? "list" : "generate";
-  const [mode, setMode] = useState<Mode>(initialMode);
+  // Mode is derived reactively from the signals rather than captured at
+  // mount time — bootstrap() populates allAccounts asynchronously, so the
+  // list must reappear as soon as the entries arrive. `forceGenerate` is the
+  // single piece of local state: it flips true when the user taps "+" and
+  // resets when they tap "Back to accounts".
+  const [forceGenerate, setForceGenerate] = useState(false);
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
@@ -143,6 +144,7 @@ export function MainScreen() {
   }, []);
 
   const canShowList = historyEnabled.value && allAccounts.value.length > 0;
+  const showList = canShowList && !forceGenerate;
 
   return (
     <motion.div
@@ -178,15 +180,15 @@ export function MainScreen() {
         }
       />
 
-      {mode === "list" && canShowList ? (
-        <AccountList onAddNew={() => setMode("generate")} />
+      {showList ? (
+        <AccountList onAddNew={() => setForceGenerate(true)} />
       ) : (
         <>
           {canShowList ? (
             <button
               type="button"
               class="flex items-center gap-1 self-start py-1 px-1 text-xs text-(--color-ink-muted) hover:text-(--color-ink) transition-colors cursor-pointer bg-transparent border-0 font-medium"
-              onClick={() => setMode("list")}
+              onClick={() => setForceGenerate(false)}
             >
               <IconChevronRight size={14} style={{ transform: "rotate(180deg)" }} />
               <span>{t("main_back_to_list")}</span>
