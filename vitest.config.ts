@@ -26,6 +26,16 @@ export default defineConfig({
         "src/content/messaging.ts",
         // Pure chrome.contextMenus + chrome.action wiring with no logic.
         "src/background/context-menus.ts",
+        // M5 sync layer: HTTP client + OPAQUE orchestration are exercised
+        // end-to-end against the real server in server/test/auth.test.ts
+        // and server/test/sync.test.ts; the crypto primitives (keys.ts,
+        // crypto.ts) ARE unit-tested under tests/sync/. payload.ts is a
+        // pure data shape, session-store.ts is a chrome.storage shim.
+        // Full cross-repo E2E lands in M6.
+        "src/shared/sync/auth.ts",
+        "src/shared/sync/client.ts",
+        "src/shared/sync/payload.ts",
+        "src/background/sync/session-store.ts",
       ],
       thresholds: {
         statements: 90,

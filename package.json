@@ -32,6 +32,7 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
+    "@cloudflare/opaque-ts": "^0.7.5",
     "@fontsource-variable/geist": "^5.2.9",
     "@fontsource-variable/geist-mono": "^5.2.8",
     "@preact/signals": "^2.9.0",
