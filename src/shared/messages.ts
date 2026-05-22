@@ -46,7 +46,8 @@ export type Request =
   | { kind: "syncConnect"; baseUrl: string; email: string; deviceLabel?: string }
   | { kind: "syncPollApproval" }
   | { kind: "syncDisconnect" }
-  | { kind: "getAccountSyncInfo"; domain: string; username: string };
+  | { kind: "getAccountSyncInfo"; domain: string; username: string }
+  | { kind: "syncPull" };
 
 // All responses share the same shape on success; we use a small set of
 // payload types and let TS pick the right one via the discriminator.
@@ -60,31 +61,33 @@ export type Response<T extends Request> = T extends { kind: "syncStatus" }
         ? SyncPollApprovalResponse
         : T extends { kind: "getAccountSyncInfo" }
           ? GetAccountSyncInfoResponse
-          : T extends { kind: "status" }
-            ? StatusResponse
-            : T extends { kind: "unlock" | "unlockWithPin" | "setup" }
-              ? UnlockResponse
-              : T extends { kind: "fingerprint" }
-                ? FingerprintResponse
-                : T extends { kind: "generate" }
-                  ? GenerateResponse
-                  : T extends { kind: "getProfile" }
-                    ? GetProfileResponse
-                    : T extends { kind: "getState" }
-                      ? GetStateResponse
-                      : T extends { kind: "listAccounts" }
-                        ? ListAccountsResponse
-                        : T extends {
-                              kind: "recordAccount" | "updateAccountProfile" | "renameAccount";
-                            }
-                          ? RecordAccountResponse
-                          : T extends { kind: "setHistoryEnabled" }
-                            ? SetHistoryEnabledResponse
-                            : T extends { kind: "getPendingSave" }
-                              ? GetPendingSaveResponse
-                              : T extends { kind: "getRecentUsername" }
-                                ? GetRecentUsernameResponse
-                                : OkResponse;
+          : T extends { kind: "syncPull" }
+            ? SyncPullResponse
+            : T extends { kind: "status" }
+              ? StatusResponse
+              : T extends { kind: "unlock" | "unlockWithPin" | "setup" }
+                ? UnlockResponse
+                : T extends { kind: "fingerprint" }
+                  ? FingerprintResponse
+                  : T extends { kind: "generate" }
+                    ? GenerateResponse
+                    : T extends { kind: "getProfile" }
+                      ? GetProfileResponse
+                      : T extends { kind: "getState" }
+                        ? GetStateResponse
+                        : T extends { kind: "listAccounts" }
+                          ? ListAccountsResponse
+                          : T extends {
+                                kind: "recordAccount" | "updateAccountProfile" | "renameAccount";
+                              }
+                            ? RecordAccountResponse
+                            : T extends { kind: "setHistoryEnabled" }
+                              ? SetHistoryEnabledResponse
+                              : T extends { kind: "getPendingSave" }
+                                ? GetPendingSaveResponse
+                                : T extends { kind: "getRecentUsername" }
+                                  ? GetRecentUsernameResponse
+                                  : OkResponse;
 
 export interface OkResponse {
   ok: true;
@@ -205,6 +208,14 @@ export interface GetAccountSyncInfoResponse {
   /** Unix ms of the last successful server push for this (domain, username),
    * or null if nothing has been synced yet (or no server is connected). */
   lastSyncedAt: number | null;
+}
+
+export interface SyncPullResponse {
+  ok: true;
+  /** null when no approved session exists (no server, locked, or pending). */
+  applied: number | null;
+  skipped: number | null;
+  cursor: number | null;
 }
 
 /** Discriminator for `chrome.runtime.onMessage` callbacks. */

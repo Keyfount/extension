@@ -33,7 +33,12 @@ import {
   pollApproval as syncPoll,
   testConnection,
 } from "./sync/runner.js";
-import { clearLastSyncMap, getLastSyncedAt, syncAccountChange } from "./sync/engine.js";
+import {
+  clearLastSyncMap,
+  getLastSyncedAt,
+  pullEvents as enginePull,
+  syncAccountChange,
+} from "./sync/engine.js";
 import type {
   ErrorResponse,
   FingerprintResponse,
@@ -51,6 +56,7 @@ import type {
   StatusResponse,
   SyncConnectResponse,
   SyncPollApprovalResponse,
+  SyncPullResponse,
   SyncStatusResponse,
   SyncTestConnectionResponse,
   UnlockResponse,
@@ -75,7 +81,8 @@ type AnyResponse =
   | SyncTestConnectionResponse
   | SyncConnectResponse
   | SyncPollApprovalResponse
-  | GetAccountSyncInfoResponse;
+  | GetAccountSyncInfoResponse
+  | SyncPullResponse;
 
 export async function handleRequest(request: Request): Promise<AnyResponse> {
   try {
@@ -239,6 +246,13 @@ export async function handleRequest(request: Request): Promise<AnyResponse> {
       case "getAccountSyncInfo": {
         const lastSyncedAt = await getLastSyncedAt(request.domain, request.username);
         return { ok: true, lastSyncedAt };
+      }
+      case "syncPull": {
+        const r = await enginePull();
+        if (r === null) {
+          return { ok: true, applied: null, skipped: null, cursor: null };
+        }
+        return { ok: true, applied: r.applied, skipped: r.skipped, cursor: r.cursor };
       }
     }
   } catch (error) {

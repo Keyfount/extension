@@ -75,6 +75,20 @@ async function bootstrap() {
 
     await loadVaultData();
     screen.value = "main";
+
+    // Fire-and-forget: pull any events that other devices pushed while
+    // this popup was closed. If something arrives we reload the vault
+    // so the user sees the fresh data without re-opening the popup.
+    void (async () => {
+      try {
+        const r = await send({ kind: "syncPull" });
+        if (r.applied !== null && r.applied > 0) {
+          await loadVaultData();
+        }
+      } catch {
+        /* offline, locked, no server — silent */
+      }
+    })();
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : "could not initialise";
     screen.value = "unlock";

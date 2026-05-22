@@ -408,4 +408,13 @@ describe("router — sync handlers (locked state)", () => {
     if (!("lastSyncedAt" in res)) throw new Error("unexpected shape");
     expect(res.lastSyncedAt).toBeNull();
   });
+
+  it("syncPull reports no-op when no approved session exists", async () => {
+    const res = await handleRequest({ kind: "syncPull" });
+    if (res.ok === false) throw new Error(res.error);
+    if (!("applied" in res)) throw new Error("unexpected shape");
+    expect(res.applied).toBeNull();
+    expect(res.skipped).toBeNull();
+    expect(res.cursor).toBeNull();
+  });
 }, 120_000);
