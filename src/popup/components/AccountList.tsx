@@ -9,6 +9,7 @@ import { AccountRowMenu } from "./AccountRowMenu.js";
 import { send } from "../api.js";
 import { t } from "../../shared/i18n.js";
 import { SOFT_SPRING, TAP_SCALE } from "../../shared/motion.js";
+import type { SyncStamp } from "../../shared/messages.js";
 import type { AccountEntry } from "../../shared/types.js";
 import { activeDomain, allAccounts, screen, selectedAccount } from "../state.js";
 
@@ -19,7 +20,7 @@ interface Props {
 export function AccountList({ onAddNew }: Props) {
   const [query, setQuery] = useState("");
   const [syncConnected, setSyncConnected] = useState(false);
-  const [syncMap, setSyncMap] = useState<Record<string, number>>({});
+  const [syncMap, setSyncMap] = useState<Record<string, SyncStamp>>({});
 
   useEffect(() => {
     let cancelled = false;

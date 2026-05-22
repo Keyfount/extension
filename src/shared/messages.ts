@@ -206,18 +206,27 @@ export type SyncPollApprovalResponse =
   | { ok: true; status: "rejected"; reason?: string }
   | { ok: true; status: "no_session" };
 
+/** Direction of the most recent successful sync for an account. */
+export type SyncDirection = "push" | "pull";
+
+export interface SyncStamp {
+  ts: number;
+  /** Omitted on legacy entries written before the direction was tracked. */
+  dir?: SyncDirection;
+}
+
 export interface GetAccountSyncInfoResponse {
   ok: true;
-  /** Unix ms of the last successful server push for this (domain, username),
-   * or null if nothing has been synced yet (or no server is connected). */
-  lastSyncedAt: number | null;
+  /** Last successful sync for this (domain, username), or null if nothing
+   * has been synced yet (or no server is connected). */
+  lastSyncedAt: SyncStamp | null;
 }
 
 export interface GetSyncMapResponse {
   ok: true;
-  /** Map of `${domain}${username}` → unix ms of last successful push.
+  /** Map of `${domain}${username}` → last successful sync stamp.
    * Empty map when no server is connected. */
-  map: Record<string, number>;
+  map: Record<string, SyncStamp>;
 }
 
 export interface SyncPullResponse {

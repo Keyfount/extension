@@ -29,8 +29,30 @@ import { bumpLamport, loadCursor, loadSession, saveCursor } from "./session-stor
 
 const LAST_SYNC_KEY = "sync.lastSyncAt.v1";
 
+export type SyncDirection = "push" | "pull";
+
+export interface SyncStamp {
+  ts: number;
+  /** Omitted on legacy entries written before the direction was tracked. */
+  dir?: SyncDirection;
+}
+
 interface LastSyncMap {
-  [accountKey: string]: number;
+  [accountKey: string]: SyncStamp;
+}
+
+/** Coerce a stored value into a {@link SyncStamp}, accepting legacy bare numbers. */
+function normaliseStamp(raw: unknown): SyncStamp | null {
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    return { ts: raw };
+  }
+  if (raw !== null && typeof raw === "object" && "ts" in raw) {
+    const ts = (raw as { ts: unknown }).ts;
+    if (typeof ts !== "number" || !Number.isFinite(ts)) return null;
+    const dir = (raw as { dir?: unknown }).dir;
+    return dir === "push" || dir === "pull" ? { ts, dir } : { ts };
+  }
+  return null;
 }
 
 function key(domain: string, username: string): string {
@@ -39,16 +61,27 @@ function key(domain: string, username: string): string {
 
 async function loadLastSyncMap(): Promise<LastSyncMap> {
   const { [LAST_SYNC_KEY]: raw } = await chrome.storage.local.get(LAST_SYNC_KEY);
-  return raw !== undefined && typeof raw === "object" && raw !== null ? (raw as LastSyncMap) : {};
+  if (raw === undefined || typeof raw !== "object" || raw === null) return {};
+  const out: LastSyncMap = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    const stamp = normaliseStamp(v);
+    if (stamp !== null) out[k] = stamp;
+  }
+  return out;
 }
 
-async function recordSyncedAt(domain: string, username: string, ts: number): Promise<void> {
+async function recordSyncedAt(
+  domain: string,
+  username: string,
+  ts: number,
+  dir: SyncDirection,
+): Promise<void> {
   const map = await loadLastSyncMap();
-  map[key(domain, username)] = ts;
+  map[key(domain, username)] = { ts, dir };
   await chrome.storage.local.set({ [LAST_SYNC_KEY]: map });
 }
 
-export async function getLastSyncedAt(domain: string, username: string): Promise<number | null> {
+export async function getLastSyncedAt(domain: string, username: string): Promise<SyncStamp | null> {
   const map = await loadLastSyncMap();
   return map[key(domain, username)] ?? null;
 }
@@ -57,7 +90,7 @@ export async function clearLastSyncMap(): Promise<void> {
   await chrome.storage.local.remove(LAST_SYNC_KEY);
 }
 
-export async function getAllLastSyncedAt(): Promise<Record<string, number>> {
+export async function getAllLastSyncedAt(): Promise<Record<string, SyncStamp>> {
   return loadLastSyncMap();
 }
 
@@ -126,12 +159,12 @@ export async function syncAccountChange(args: {
 
     const acceptedAt = await pushOp(op, ctx);
     if (acceptedAt !== null) {
-      await recordSyncedAt(args.domain, args.username, acceptedAt);
+      await recordSyncedAt(args.domain, args.username, acceptedAt, "push");
       if (args.kind === "rename" && args.oldUsername !== undefined) {
         // Migrate the old key entry to the new one.
         const map = await loadLastSyncMap();
         delete map[key(args.domain, args.oldUsername)];
-        map[key(args.domain, args.username)] = acceptedAt;
+        map[key(args.domain, args.username)] = { ts: acceptedAt, dir: "push" };
         await chrome.storage.local.set({ [LAST_SYNC_KEY]: map });
       }
     }
@@ -232,7 +265,7 @@ async function applyOp(op: SyncOp, ctx: ApprovedContext): Promise<void> {
       );
       // Tag the per-account lastSyncedAt so the detail screen shows
       // the freshness.
-      await recordSyncedAt(op.entry.domain, op.entry.username, Date.now());
+      await recordSyncedAt(op.entry.domain, op.entry.username, Date.now(), "pull");
       return;
     }
     case "delete_account": {
@@ -249,7 +282,7 @@ async function applyOp(op: SyncOp, ctx: ApprovedContext): Promise<void> {
         op.newUsername,
         fallbackFor(state),
       );
-      await recordSyncedAt(op.domain, op.newUsername, Date.now());
+      await recordSyncedAt(op.domain, op.newUsername, Date.now(), "pull");
       return;
     }
     case "set_default_profile": {

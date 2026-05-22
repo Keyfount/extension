@@ -16,6 +16,7 @@ import { IconCheck, IconChevronRight, IconCopy, IconEye, IconEyeOff } from "../.
 import { ProfileEditor } from "../../shared/ProfileEditor.js";
 import { t } from "../../shared/i18n.js";
 import { POP_IN, SOFT_SPRING, TAP_SCALE } from "../../shared/motion.js";
+import type { SyncStamp } from "../../shared/messages.js";
 import type { Profile } from "../../shared/types.js";
 import { activeDomain, allAccounts, fingerprint, screen, selectedAccount } from "../state.js";
 
@@ -32,7 +33,7 @@ export function AccountDetailScreen() {
   const [previewRevealed, setPreviewRevealed] = useState(false);
   const [previewCopied, setPreviewCopied] = useState(false);
   const [postRenameToast, setPostRenameToast] = useState<string | null>(null);
-  const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
+  const [lastSyncedAt, setLastSyncedAt] = useState<SyncStamp | null>(null);
 
   // Fetch sync info whenever the entry changes (rename keeps the old key
   // entry's timestamp; we refresh after a sync-ack via the cursor below).
@@ -669,7 +670,8 @@ export function AccountDetailScreen() {
         </span>
         {lastSyncedAt !== null ? (
           <span class="text-xs text-(--color-ink-subtle)">
-            Synchronisé {formatRelativeAge(lastSyncedAt)} avec le serveur.
+            Synchronisé {formatRelativeAge(lastSyncedAt.ts)} {directionPreposition(lastSyncedAt.dir)}{" "}
+            le serveur.
           </span>
         ) : null}
         {confirmingDelete ? (
@@ -748,6 +750,18 @@ export function AccountDetailScreen() {
       </AnimatePresence>
     </motion.div>
   );
+}
+
+/**
+ * Returns the preposition that fits the sync direction:
+ *  - push (we uploaded our state) → "vers"
+ *  - pull (we received remote state) → "depuis"
+ *  - unknown (legacy entry) → "avec"
+ */
+function directionPreposition(dir: SyncStamp["dir"]): string {
+  if (dir === "push") return "vers";
+  if (dir === "pull") return "depuis";
+  return "avec";
 }
 
 /** Returns "à l'instant" / "il y a 12 min" / "il y a 3 h" / "il y a 2 j". */
