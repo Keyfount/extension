@@ -7,8 +7,8 @@ import {
   loadState,
   saveState,
   updateState,
-  wipeAll,
 } from "../src/background/storage.js";
+import { wipeAllProfiles } from "../src/background/profiles.js";
 import { DEFAULT_RANDOM_PROFILE } from "../src/shared/types.js";
 
 const mock = installChromeMock();
@@ -89,6 +89,12 @@ describe("loadState", () => {
 
 describe("saveState / updateState", () => {
   it("round-trips state through storage", async () => {
+    // Seed legacy state so the first loadState() bootstraps an active profile
+    // via migration; subsequent saveState() then has a profile to scope to.
+    await chrome.storage.local.set({
+      "state.v1": { schemaVersion: SCHEMA_VERSION, sites: {} },
+    });
+    await loadState();
     await saveState({
       schemaVersion: SCHEMA_VERSION,
       defaultProfile: DEFAULT_RANDOM_PROFILE,
@@ -106,6 +112,10 @@ describe("saveState / updateState", () => {
   });
 
   it("updateState mutates atomically", async () => {
+    await chrome.storage.local.set({
+      "state.v1": { schemaVersion: SCHEMA_VERSION, sites: {} },
+    });
+    await loadState();
     await updateState((s) => ({ ...s, autoLockMinutes: 5 }));
     const state = await loadState();
     expect(state.autoLockMinutes).toBe(5);
@@ -126,19 +136,27 @@ describe("effectiveProfile", () => {
   });
 });
 
-describe("wipeAll", () => {
+describe("wipeAllProfiles", () => {
   it("removes everything", async () => {
-    await saveState({
-      schemaVersion: SCHEMA_VERSION,
-      defaultProfile: DEFAULT_RANDOM_PROFILE,
-      autoLockMinutes: 15,
-      historyEnabled: false,
-      faviconFallbackEnabled: true,
-      clipboardClearSeconds: 30,
-      fingerprint: "x",
-      sites: {},
+    // Seed a profile via the registry-aware saveState (which auto-migrates
+    // any legacy key it finds; here storage starts empty so it creates a
+    // fresh profile).
+    await chrome.storage.local.set({
+      "state.v1": {
+        schemaVersion: SCHEMA_VERSION,
+        defaultProfile: DEFAULT_RANDOM_PROFILE,
+        autoLockMinutes: 15,
+        historyEnabled: false,
+        faviconFallbackEnabled: true,
+        clipboardClearSeconds: 30,
+        fingerprint: "x",
+        sites: {},
+      },
     });
-    await wipeAll();
+    // Force migration.
+    const before = await loadState();
+    expect(before.fingerprint).toBe("x");
+    await wipeAllProfiles();
     const state = await loadState();
     expect(state.fingerprint).toBeUndefined();
   });

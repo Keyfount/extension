@@ -40,6 +40,11 @@ export type Request =
   | { kind: "cancelClipboardClear" }
   | { kind: "setRecentUsername"; domain: string; username: string }
   | { kind: "getRecentUsername"; domain: string }
+  // --- vault registry ------------------------------------------------------
+  | { kind: "listVaults" }
+  | { kind: "switchVault"; id: string }
+  | { kind: "deleteVault"; id: string }
+  | { kind: "startNewVault" }
   // --- server sync ---------------------------------------------------------
   | { kind: "syncStatus" }
   | { kind: "syncTestConnection"; baseUrl: string }
@@ -52,48 +57,66 @@ export type Request =
 
 // All responses share the same shape on success; we use a small set of
 // payload types and let TS pick the right one via the discriminator.
-export type Response<T extends Request> = T extends { kind: "syncStatus" }
-  ? SyncStatusResponse
-  : T extends { kind: "syncTestConnection" }
-    ? SyncTestConnectionResponse
-    : T extends { kind: "syncConnect" }
-      ? SyncConnectResponse
-      : T extends { kind: "syncPollApproval" }
-        ? SyncPollApprovalResponse
-        : T extends { kind: "getAccountSyncInfo" }
-          ? GetAccountSyncInfoResponse
-          : T extends { kind: "getSyncMap" }
-            ? GetSyncMapResponse
-            : T extends { kind: "syncPull" }
-              ? SyncPullResponse
-              : T extends { kind: "status" }
-                ? StatusResponse
-                : T extends { kind: "unlock" | "unlockWithPin" | "setup" }
-                  ? UnlockResponse
-                  : T extends { kind: "fingerprint" }
-                    ? FingerprintResponse
-                    : T extends { kind: "generate" }
-                      ? GenerateResponse
-                      : T extends { kind: "getProfile" }
-                        ? GetProfileResponse
-                        : T extends { kind: "getState" }
-                          ? GetStateResponse
-                          : T extends { kind: "listAccounts" }
-                            ? ListAccountsResponse
-                            : T extends {
-                                  kind: "recordAccount" | "updateAccountProfile" | "renameAccount";
-                                }
-                              ? RecordAccountResponse
-                              : T extends { kind: "setHistoryEnabled" }
-                                ? SetHistoryEnabledResponse
-                                : T extends { kind: "getPendingSave" }
-                                  ? GetPendingSaveResponse
-                                  : T extends { kind: "getRecentUsername" }
-                                    ? GetRecentUsernameResponse
-                                    : OkResponse;
+export type Response<T extends Request> = T extends { kind: "listVaults" }
+  ? ListVaultsResponse
+  : T extends { kind: "syncStatus" }
+    ? SyncStatusResponse
+    : T extends { kind: "syncTestConnection" }
+      ? SyncTestConnectionResponse
+      : T extends { kind: "syncConnect" }
+        ? SyncConnectResponse
+        : T extends { kind: "syncPollApproval" }
+          ? SyncPollApprovalResponse
+          : T extends { kind: "getAccountSyncInfo" }
+            ? GetAccountSyncInfoResponse
+            : T extends { kind: "getSyncMap" }
+              ? GetSyncMapResponse
+              : T extends { kind: "syncPull" }
+                ? SyncPullResponse
+                : T extends { kind: "status" }
+                  ? StatusResponse
+                  : T extends { kind: "unlock" | "unlockWithPin" | "setup" }
+                    ? UnlockResponse
+                    : T extends { kind: "fingerprint" }
+                      ? FingerprintResponse
+                      : T extends { kind: "generate" }
+                        ? GenerateResponse
+                        : T extends { kind: "getProfile" }
+                          ? GetProfileResponse
+                          : T extends { kind: "getState" }
+                            ? GetStateResponse
+                            : T extends { kind: "listAccounts" }
+                              ? ListAccountsResponse
+                              : T extends {
+                                    kind:
+                                      | "recordAccount"
+                                      | "updateAccountProfile"
+                                      | "renameAccount";
+                                  }
+                                ? RecordAccountResponse
+                                : T extends { kind: "setHistoryEnabled" }
+                                  ? SetHistoryEnabledResponse
+                                  : T extends { kind: "getPendingSave" }
+                                    ? GetPendingSaveResponse
+                                    : T extends { kind: "getRecentUsername" }
+                                      ? GetRecentUsernameResponse
+                                      : OkResponse;
 
 export interface OkResponse {
   ok: true;
+}
+
+export interface VaultMetaView {
+  id: string;
+  fingerprint: string;
+  createdAt: number;
+  lastUsedAt: number;
+}
+
+export interface ListVaultsResponse {
+  ok: true;
+  activeId: string | null;
+  vaults: VaultMetaView[];
 }
 
 export interface ErrorResponse {

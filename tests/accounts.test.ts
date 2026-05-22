@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { installChromeMock } from "./helpers/chrome-mock.js";
+import { bootstrapTestProfile, installChromeMock } from "./helpers/chrome-mock.js";
 import {
   deleteAccount,
   listAccounts,
@@ -22,8 +22,9 @@ const fallback: ProfileFallback = () => random;
 
 const mock = installChromeMock();
 
-beforeEach(() => {
+beforeEach(async () => {
   mock.reset();
+  await bootstrapTestProfile();
 });
 
 describe("accounts CRUD", () => {

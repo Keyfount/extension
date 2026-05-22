@@ -12,9 +12,9 @@
  * site's effective profile at the time of read).
  */
 import { deriveAesGcmKey } from "./crypto/index.js";
+import { accountsKey, getActiveProfileId, requireActiveProfileId } from "./profiles.js";
 import { DEFAULT_RANDOM_PROFILE, type AccountEntry, type Profile } from "../shared/types.js";
 
-const STORAGE_KEY = "accountsCipher";
 const ITERATIONS = 200_000;
 const SALT_LENGTH = 16;
 const IV_LENGTH = 12;
@@ -130,13 +130,17 @@ export async function deleteAccount(
 }
 
 /**
- * Remove the encrypted blob entirely. Returns 1 if a blob existed, 0
- * otherwise — the caller surfaces this as a coarse "history wiped"
- * confirmation. We don't have the master here so we can't count entries.
+ * Remove the encrypted blob for the active profile entirely. Returns 1
+ * if a blob existed, 0 otherwise — the caller surfaces this as a coarse
+ * "history wiped" confirmation. We don't have the master here so we can't
+ * count entries.
  */
 export async function wipeAccounts(): Promise<number> {
-  const { [STORAGE_KEY]: raw } = await chrome.storage.local.get(STORAGE_KEY);
-  await chrome.storage.local.remove(STORAGE_KEY);
+  const id = await getActiveProfileId();
+  if (id === null) return 0;
+  const key = accountsKey(id);
+  const { [key]: raw } = await chrome.storage.local.get(key);
+  await chrome.storage.local.remove(key);
   if (!raw || typeof raw !== "object") return 0;
   return 1;
 }
@@ -153,7 +157,10 @@ async function readAll(
   master: string,
   fallback: ProfileFallback,
 ): Promise<{ entries: AccountEntry[] }> {
-  const { [STORAGE_KEY]: raw } = await chrome.storage.local.get(STORAGE_KEY);
+  const id = await getActiveProfileId();
+  if (id === null) return { entries: [] };
+  const storageKey = accountsKey(id);
+  const { [storageKey]: raw } = await chrome.storage.local.get(storageKey);
   if (!raw || typeof raw !== "object") return { entries: [] };
   const blob = raw as CipherBlob;
   const salt = base64ToBytes(blob.salt);
@@ -196,6 +203,7 @@ async function readAll(
 }
 
 async function writeAll(master: string, entries: AccountEntry[]): Promise<void> {
+  const id = await requireActiveProfileId();
   const salt = crypto.getRandomValues(new Uint8Array(SALT_LENGTH));
   const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH));
   const key = await deriveAesGcmKey(master, salt, ITERATIONS);
@@ -210,7 +218,7 @@ async function writeAll(master: string, entries: AccountEntry[]): Promise<void> 
     salt: bytesToBase64(salt),
     iterations: ITERATIONS,
   };
-  await chrome.storage.local.set({ [STORAGE_KEY]: blob });
+  await chrome.storage.local.set({ [accountsKey(id)]: blob });
 }
 
 function bytesToBase64(bytes: Uint8Array): string {

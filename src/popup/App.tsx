@@ -8,6 +8,7 @@ import { SettingsScreen } from "./components/SettingsScreen.js";
 import { SetupScreen } from "./components/SetupScreen.js";
 import { SyncScreen } from "./components/SyncScreen.js";
 import { UnlockScreen } from "./components/UnlockScreen.js";
+import { VaultsScreen } from "./components/VaultsScreen.js";
 import { DotGrid } from "../shared/DotGrid.js";
 import { errorMessage, fingerprint, hasPin, screen } from "./state.js";
 import { loadVaultData } from "./vault.js";
@@ -47,6 +48,8 @@ function renderScreen() {
       return <SettingsScreen key="settings" />;
     case "sync":
       return <SyncScreen key="sync" />;
+    case "vaults":
+      return <VaultsScreen key="vaults" />;
   }
 }
 
