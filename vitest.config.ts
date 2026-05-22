@@ -36,6 +36,11 @@ export default defineConfig({
         "src/shared/sync/client.ts",
         "src/shared/sync/payload.ts",
         "src/background/sync/session-store.ts",
+        // connect/disconnect inside the runner exercise the full OPAQUE
+        // round-trip which is impractical to mock end-to-end here; they
+        // are covered by the cross-repo E2E in server/test/auth.test.ts.
+        // testConnection IS unit-tested in tests/sync/runner.test.ts.
+        "src/background/sync/runner.ts",
       ],
       thresholds: {
         statements: 90,
