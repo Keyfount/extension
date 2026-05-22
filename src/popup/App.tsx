@@ -6,6 +6,7 @@ import { LoadingScreen } from "./components/LoadingScreen.js";
 import { MainScreen } from "./components/MainScreen.js";
 import { SettingsScreen } from "./components/SettingsScreen.js";
 import { SetupScreen } from "./components/SetupScreen.js";
+import { SyncScreen } from "./components/SyncScreen.js";
 import { UnlockScreen } from "./components/UnlockScreen.js";
 import { DotGrid } from "../shared/DotGrid.js";
 import { errorMessage, fingerprint, hasPin, screen } from "./state.js";
@@ -44,6 +45,8 @@ function renderScreen() {
       return <AccountDetailScreen key="account-detail" />;
     case "settings":
       return <SettingsScreen key="settings" />;
+    case "sync":
+      return <SyncScreen key="sync" />;
   }
 }
 

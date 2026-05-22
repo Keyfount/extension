@@ -7,7 +7,14 @@
 import { computed, signal } from "@preact/signals";
 import type { AccountEntry } from "../shared/types.js";
 
-export type Screen = "loading" | "setup" | "unlock" | "main" | "account-detail" | "settings";
+export type Screen =
+  | "loading"
+  | "setup"
+  | "unlock"
+  | "main"
+  | "account-detail"
+  | "settings"
+  | "sync";
 
 export const screen = signal<Screen>("loading");
 
