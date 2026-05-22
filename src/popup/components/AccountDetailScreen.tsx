@@ -32,6 +32,24 @@ export function AccountDetailScreen() {
   const [previewRevealed, setPreviewRevealed] = useState(false);
   const [previewCopied, setPreviewCopied] = useState(false);
   const [postRenameToast, setPostRenameToast] = useState<string | null>(null);
+  const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
+
+  // Fetch sync info whenever the entry changes (rename keeps the old key
+  // entry's timestamp; we refresh after a sync-ack via the cursor below).
+  useEffect(() => {
+    if (entry === null) return;
+    let cancelled = false;
+    void send({
+      kind: "getAccountSyncInfo",
+      domain: entry.domain,
+      username: entry.username,
+    }).then((res) => {
+      if (!cancelled) setLastSyncedAt(res.lastSyncedAt);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [entry?.domain, entry?.username]);
   // Rotation flow: an inline panel that previews both the current and
   // the bumped-counter password so the user can copy the values that
   // most "change password" forms demand (current + new ×2). Persistence
@@ -649,6 +667,11 @@ export function AccountDetailScreen() {
         <span class="text-xs text-(--color-ink-subtle)">
           {t("detail_last_used", new Date(entry.lastUsedAt).toLocaleString())}
         </span>
+        {lastSyncedAt !== null ? (
+          <span class="text-xs text-(--color-ink-subtle)">
+            Synchronisé {formatRelativeAge(lastSyncedAt)} avec le serveur.
+          </span>
+        ) : null}
         {confirmingDelete ? (
           <div class="callout callout-danger flex-col gap-3" role="alertdialog">
             <span>{t("detail_delete_confirm")}</span>
@@ -725,4 +748,18 @@ export function AccountDetailScreen() {
       </AnimatePresence>
     </motion.div>
   );
+}
+
+/** Returns "à l'instant" / "il y a 12 min" / "il y a 3 h" / "il y a 2 j". */
+function formatRelativeAge(ts: number): string {
+  const diffMs = Date.now() - ts;
+  const sec = Math.max(0, Math.round(diffMs / 1000));
+  if (sec < 30) return "à l'instant";
+  if (sec < 90) return "il y a 1 min";
+  const min = Math.round(sec / 60);
+  if (min < 60) return `il y a ${min} min`;
+  const hr = Math.round(min / 60);
+  if (hr < 24) return `il y a ${hr} h`;
+  const day = Math.round(hr / 24);
+  return `il y a ${day} j`;
 }

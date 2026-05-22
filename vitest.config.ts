@@ -41,6 +41,11 @@ export default defineConfig({
         // are covered by the cross-repo E2E in server/test/auth.test.ts.
         // testConnection IS unit-tested in tests/sync/runner.test.ts.
         "src/background/sync/runner.ts",
+        // Auto-sync engine — fire-and-forget pushes on account
+        // mutations. Depends on chrome.storage.session + an approved
+        // SyncSession + the OPAQUE-derived EK; integration is covered
+        // by the cross-repo end-to-end flow that lands in a later PR.
+        "src/background/sync/engine.ts",
       ],
       thresholds: {
         statements: 90,

@@ -33,10 +33,12 @@ import {
   pollApproval as syncPoll,
   testConnection,
 } from "./sync/runner.js";
+import { clearLastSyncMap, getLastSyncedAt, syncAccountChange } from "./sync/engine.js";
 import type {
   ErrorResponse,
   FingerprintResponse,
   GenerateResponse,
+  GetAccountSyncInfoResponse,
   GetPendingSaveResponse,
   GetProfileResponse,
   GetRecentUsernameResponse,
@@ -72,7 +74,8 @@ type AnyResponse =
   | SyncStatusResponse
   | SyncTestConnectionResponse
   | SyncConnectResponse
-  | SyncPollApprovalResponse;
+  | SyncPollApprovalResponse
+  | GetAccountSyncInfoResponse;
 
 export async function handleRequest(request: Request): Promise<AnyResponse> {
   try {
@@ -183,6 +186,7 @@ export async function handleRequest(request: Request): Promise<AnyResponse> {
       case "wipe":
         await wipeAll();
         await wipeAccounts();
+        await clearLastSyncMap();
         await lock();
         return { ok: true };
       case "syncStatus": {
@@ -230,7 +234,12 @@ export async function handleRequest(request: Request): Promise<AnyResponse> {
       }
       case "syncDisconnect":
         await syncDisconnect();
+        await clearLastSyncMap();
         return { ok: true };
+      case "getAccountSyncInfo": {
+        const lastSyncedAt = await getLastSyncedAt(request.domain, request.username);
+        return { ok: true, lastSyncedAt };
+      }
     }
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : String(error) };
@@ -398,6 +407,7 @@ async function handleRecordAccount(
   if (trimmed.length === 0) return { ok: false, error: "username required" };
   if (domain.length === 0) return { ok: false, error: "domain required" };
   const entry = await recordAccount(master, domain, trimmed, profile, fallbackFor(state));
+  void syncAccountChange({ kind: "upsert", entry, domain, username: trimmed });
   return { ok: true, entry };
 }
 
@@ -411,6 +421,7 @@ async function handleUpdateAccountProfile(
   const state = await loadState();
   const entry = await updateAccountProfile(master, domain, username, profile, fallbackFor(state));
   if (entry === null) return { ok: false, error: "account not found" };
+  void syncAccountChange({ kind: "upsert", entry, domain, username });
   return { ok: true, entry };
 }
 
@@ -431,6 +442,13 @@ async function handleRenameAccount(
       error: result.reason === "exists" ? "username already exists" : "account not found",
     };
   }
+  void syncAccountChange({
+    kind: "rename",
+    entry: result.entry,
+    domain,
+    username: trimmed,
+    oldUsername,
+  });
   return { ok: true, entry: result.entry };
 }
 
@@ -439,6 +457,7 @@ async function handleDeleteAccount(domain: string, username: string): Promise<vo
   if (master === null) return;
   const state = await loadState();
   await deleteAccount(master, domain, username, fallbackFor(state));
+  void syncAccountChange({ kind: "delete", domain, username });
 }
 
 async function handleSetHistoryEnabled(

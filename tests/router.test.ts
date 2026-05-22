@@ -397,4 +397,15 @@ describe("router — sync handlers (locked state)", () => {
     const res = await handleRequest({ kind: "syncDisconnect" });
     expect(res).toEqual({ ok: true });
   });
+
+  it("getAccountSyncInfo returns null when no server is connected", async () => {
+    const res = await handleRequest({
+      kind: "getAccountSyncInfo",
+      domain: "example.com",
+      username: "alice",
+    });
+    if (res.ok === false) throw new Error(res.error);
+    if (!("lastSyncedAt" in res)) throw new Error("unexpected shape");
+    expect(res.lastSyncedAt).toBeNull();
+  });
 }, 120_000);
