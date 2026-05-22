@@ -33,7 +33,15 @@ export function SyncSection() {
 
   function openWizard(): void {
     const url = chrome.runtime.getURL("sync.html");
-    void chrome.tabs.create({ url });
+    // Standalone window (no tab strip, no address bar) so the wizard
+    // feels like a system dialog rather than a normal browser tab.
+    void chrome.windows.create({
+      url,
+      type: "popup",
+      width: 640,
+      height: 760,
+      focused: true,
+    });
   }
 
   async function disconnect(): Promise<void> {
