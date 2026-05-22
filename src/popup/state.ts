@@ -14,7 +14,8 @@ export type Screen =
   | "main"
   | "account-detail"
   | "settings"
-  | "sync";
+  | "sync"
+  | "vaults";
 
 export const screen = signal<Screen>("loading");
 
