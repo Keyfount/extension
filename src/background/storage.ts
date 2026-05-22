@@ -8,6 +8,7 @@
  * No generated passwords are ever written to disk.
  */
 import { DEFAULT_RANDOM_PROFILE, type Profile } from "../shared/types.js";
+import { getActiveProfileId, requireActiveProfileId, stateKey } from "./profiles.js";
 
 export const SCHEMA_VERSION = 4 as const;
 
@@ -50,8 +51,6 @@ export interface StoredState {
   sites: Record<string, Profile>;
 }
 
-const STORAGE_KEY = "state.v1";
-
 export const DEFAULT_STATE: StoredState = Object.freeze({
   schemaVersion: SCHEMA_VERSION,
   defaultProfile: DEFAULT_RANDOM_PROFILE,
@@ -63,11 +62,15 @@ export const DEFAULT_STATE: StoredState = Object.freeze({
 }) as StoredState;
 
 /**
- * Read the full state. Returns a defensive copy of {@link DEFAULT_STATE} when
- * the extension has never been set up. Migrates v1 → v2 in place.
+ * Read the full state for the active profile. Returns a defensive copy of
+ * {@link DEFAULT_STATE} when the active profile has no persisted state yet
+ * (e.g. mid-setup) or when no profile is active.
  */
 export async function loadState(): Promise<StoredState> {
-  const { [STORAGE_KEY]: raw } = await chrome.storage.local.get(STORAGE_KEY);
+  const id = await getActiveProfileId();
+  if (id === null) return cloneDefault();
+  const key = stateKey(id);
+  const { [key]: raw } = await chrome.storage.local.get(key);
   if (!raw || typeof raw !== "object") {
     return cloneDefault();
   }
@@ -95,9 +98,19 @@ export async function loadState(): Promise<StoredState> {
   return migrated;
 }
 
-/** Persist the full state. The caller is responsible for atomic updates. */
+/** Persist the full state for the active profile. */
 export async function saveState(state: StoredState): Promise<void> {
-  await chrome.storage.local.set({ [STORAGE_KEY]: state });
+  const id = await requireActiveProfileId();
+  await chrome.storage.local.set({ [stateKey(id)]: state });
+}
+
+/**
+ * Persist state into an explicit profile id. Used by the setup flow when a
+ * fresh profile has just been created and there's no implicit "active"
+ * resolution yet.
+ */
+export async function saveStateFor(id: string, state: StoredState): Promise<void> {
+  await chrome.storage.local.set({ [stateKey(id)]: state });
 }
 
 /** Update part of the state atomically. */
@@ -118,9 +131,11 @@ export function effectiveProfile(state: StoredState, domain: string): Profile {
   return state.sites[domain] ?? state.defaultProfile;
 }
 
-/** Reset everything. Used by the "Forget everything" button. */
-export async function wipeAll(): Promise<void> {
-  await chrome.storage.local.remove(STORAGE_KEY);
+/** Wipe just the active profile's state document. */
+export async function wipeActiveProfileState(): Promise<void> {
+  const id = await getActiveProfileId();
+  if (id === null) return;
+  await chrome.storage.local.remove(stateKey(id));
 }
 
 function cloneDefault(): StoredState {

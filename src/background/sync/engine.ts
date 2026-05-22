@@ -24,10 +24,9 @@ import {
   type ProfileFallback,
 } from "../accounts.js";
 import { effectiveProfile, loadState, updateState } from "../storage.js";
+import { getActiveProfileId, requireActiveProfileId, syncLastAtKey } from "../profiles.js";
 import { readMaster } from "../session.js";
 import { bumpLamport, loadCursor, loadSession, saveCursor } from "./session-store.js";
-
-const LAST_SYNC_KEY = "sync.lastSyncAt.v1";
 
 export type SyncDirection = "push" | "pull";
 
@@ -60,7 +59,10 @@ function key(domain: string, username: string): string {
 }
 
 async function loadLastSyncMap(): Promise<LastSyncMap> {
-  const { [LAST_SYNC_KEY]: raw } = await chrome.storage.local.get(LAST_SYNC_KEY);
+  const id = await getActiveProfileId();
+  if (id === null) return {};
+  const storageKey = syncLastAtKey(id);
+  const { [storageKey]: raw } = await chrome.storage.local.get(storageKey);
   if (raw === undefined || typeof raw !== "object" || raw === null) return {};
   const out: LastSyncMap = {};
   for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
@@ -76,9 +78,10 @@ async function recordSyncedAt(
   ts: number,
   dir: SyncDirection,
 ): Promise<void> {
+  const id = await requireActiveProfileId();
   const map = await loadLastSyncMap();
   map[key(domain, username)] = { ts, dir };
-  await chrome.storage.local.set({ [LAST_SYNC_KEY]: map });
+  await chrome.storage.local.set({ [syncLastAtKey(id)]: map });
 }
 
 export async function getLastSyncedAt(domain: string, username: string): Promise<SyncStamp | null> {
@@ -87,7 +90,9 @@ export async function getLastSyncedAt(domain: string, username: string): Promise
 }
 
 export async function clearLastSyncMap(): Promise<void> {
-  await chrome.storage.local.remove(LAST_SYNC_KEY);
+  const id = await getActiveProfileId();
+  if (id === null) return;
+  await chrome.storage.local.remove(syncLastAtKey(id));
 }
 
 export async function getAllLastSyncedAt(): Promise<Record<string, SyncStamp>> {
@@ -162,10 +167,11 @@ export async function syncAccountChange(args: {
       await recordSyncedAt(args.domain, args.username, acceptedAt, "push");
       if (args.kind === "rename" && args.oldUsername !== undefined) {
         // Migrate the old key entry to the new one.
+        const id = await requireActiveProfileId();
         const map = await loadLastSyncMap();
         delete map[key(args.domain, args.oldUsername)];
         map[key(args.domain, args.username)] = { ts: acceptedAt, dir: "push" };
-        await chrome.storage.local.set({ [LAST_SYNC_KEY]: map });
+        await chrome.storage.local.set({ [syncLastAtKey(id)]: map });
       }
     }
   } catch (err) {

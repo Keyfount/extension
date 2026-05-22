@@ -12,6 +12,17 @@ import {
   formatFingerprint,
 } from "./crypto/index.js";
 import {
+  clearActiveProfile,
+  createProfile,
+  deleteProfile,
+  getActiveProfileId,
+  listProfiles,
+  setActiveProfile,
+  touchActiveProfile,
+  updateProfileFingerprint,
+  wipeAllProfiles,
+} from "./profiles.js";
+import {
   deleteAccount,
   listAccounts,
   recordAccount,
@@ -23,7 +34,13 @@ import {
 import { clearPendingSave, getPendingSave, setPendingSave } from "./pending.js";
 import { getRecentUsername, setRecentUsername } from "./recent-username.js";
 import { armClipboardClear, cancelClipboardClear } from "./clipboard.js";
-import { effectiveProfile, loadState, updateState, wipeAll, type StoredState } from "./storage.js";
+import {
+  effectiveProfile,
+  loadState,
+  saveStateFor,
+  updateState,
+  type StoredState,
+} from "./storage.js";
 import { lock, readMaster, status as sessionStatus, unlock } from "./session.js";
 import {
   connect as syncConnect,
@@ -51,6 +68,7 @@ import type {
   GetRecentUsernameResponse,
   GetStateResponse,
   ListAccountsResponse,
+  ListVaultsResponse,
   OkResponse,
   RecordAccountResponse,
   Request,
@@ -85,7 +103,8 @@ type AnyResponse =
   | SyncPollApprovalResponse
   | GetAccountSyncInfoResponse
   | GetSyncMapResponse
-  | SyncPullResponse;
+  | SyncPullResponse
+  | ListVaultsResponse;
 
 export async function handleRequest(request: Request): Promise<AnyResponse> {
   try {
@@ -194,10 +213,33 @@ export async function handleRequest(request: Request): Promise<AnyResponse> {
         return { ok: true, username };
       }
       case "wipe":
-        await wipeAll();
-        await wipeAccounts();
-        await clearLastSyncMap();
         await lock();
+        await wipeAllProfiles();
+        return { ok: true };
+      case "listVaults": {
+        const vaults = await listProfiles();
+        const activeId = await getActiveProfileId();
+        return { ok: true, activeId, vaults };
+      }
+      case "switchVault": {
+        await lock();
+        await chrome.storage.session.clear();
+        await setActiveProfile(request.id);
+        return { ok: true };
+      }
+      case "deleteVault": {
+        const active = await getActiveProfileId();
+        if (active === request.id) {
+          await lock();
+          await chrome.storage.session.clear();
+        }
+        await deleteProfile(request.id);
+        return { ok: true };
+      }
+      case "startNewVault":
+        await lock();
+        await chrome.storage.session.clear();
+        await clearActiveProfile();
         return { ok: true };
       case "syncStatus": {
         const status = await getSyncStatus();
@@ -268,6 +310,16 @@ export async function handleRequest(request: Request): Promise<AnyResponse> {
 }
 
 async function handleStatus(): Promise<StatusResponse> {
+  const activeId = await getActiveProfileId();
+  if (activeId === null) {
+    return {
+      ok: true,
+      locked: true,
+      isFirstRun: true,
+      fingerprint: null,
+      hasPin: false,
+    };
+  }
   const state = await loadState();
   const ses = await sessionStatus();
   return {
@@ -289,14 +341,34 @@ async function handleSetup(
   const fingerprintBytes = await fingerprintMaster(master);
   const fingerprint = formatFingerprint(fingerprintBytes);
 
-  await updateState((state) => ({
-    ...state,
-    fingerprint,
-    defaultProfile: defaultProfile ?? state.defaultProfile,
-  }));
+  // Setup either populates the active (empty) profile or creates a fresh
+  // one. Both paths converge on saving the StoredState with the fingerprint
+  // and unlocking the session.
+  const activeId = await getActiveProfileId();
+  let targetId: string;
+  if (activeId === null) {
+    const created = await createProfile(fingerprint);
+    targetId = created.id;
+  } else {
+    const existing = await loadState();
+    if (existing.fingerprint !== undefined) {
+      // The active profile already has a master — refuse to overwrite. The
+      // caller should have routed to "create new profile" instead.
+      return { ok: false, error: "profile already set up" };
+    }
+    targetId = activeId;
+    await updateProfileFingerprint(targetId, fingerprint);
+  }
 
-  const state = await loadState();
-  await unlock(master, state.autoLockMinutes);
+  const baseState = await loadState();
+  const nextState: StoredState = {
+    ...baseState,
+    fingerprint,
+    defaultProfile: defaultProfile ?? baseState.defaultProfile,
+  };
+  await saveStateFor(targetId, nextState);
+
+  await unlock(master, nextState.autoLockMinutes);
   return { ok: true, fingerprint };
 }
 
@@ -310,6 +382,7 @@ async function handleUnlock(master: string): Promise<UnlockResponse | ErrorRespo
     return { ok: false, error: "incorrect master password" };
   }
   await unlock(master, state.autoLockMinutes);
+  await touchActiveProfile();
   return { ok: true, fingerprint: candidate };
 }
 

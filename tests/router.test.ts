@@ -169,6 +169,7 @@ describe("router — defaults, profile delete, auto-lock", () => {
   });
 
   it("validates the auto-lock minutes range", async () => {
+    await handleRequest({ kind: "setup", master: "super-long-master" });
     expect((await handleRequest({ kind: "setAutoLockMinutes", minutes: -1 })).ok).toBe(false);
     expect((await handleRequest({ kind: "setAutoLockMinutes", minutes: 99999 })).ok).toBe(false);
     expect((await handleRequest({ kind: "setAutoLockMinutes", minutes: 30 })).ok).toBe(true);

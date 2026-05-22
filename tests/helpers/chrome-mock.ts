@@ -69,6 +69,38 @@ function createAlarmsApi(): AlarmsApi {
   };
 }
 
+/**
+ * Force an active vault profile so storage-touching modules can write without
+ * tripping the "no_active_profile" guard. Seeds the legacy state.v1 key so
+ * the first read triggers the registry migration — same path production uses
+ * on upgrade from a single-vault install.
+ */
+export async function bootstrapTestProfile(opts: { fingerprint?: string } = {}): Promise<void> {
+  await chrome.storage.local.set({
+    "state.v1": {
+      schemaVersion: 4,
+      defaultProfile: {
+        mode: "random",
+        length: 16,
+        lower: true,
+        upper: true,
+        digits: true,
+        symbols: true,
+        counter: 1,
+      },
+      autoLockMinutes: 15,
+      historyEnabled: true,
+      faviconFallbackEnabled: true,
+      clipboardClearSeconds: 30,
+      fingerprint: opts.fingerprint ?? "",
+      sites: {},
+    },
+  });
+  // First read triggers migration; we discard the result.
+  const { loadState } = await import("../../src/background/storage.js");
+  await loadState();
+}
+
 export function installChromeMock(): {
   alarms: AlarmsApi;
   reset: () => void;
