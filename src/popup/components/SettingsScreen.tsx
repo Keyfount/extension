@@ -8,7 +8,7 @@ import { PinSection } from "../../options/components/PinSection.js";
 import { DangerSection } from "../../options/components/DangerSection.js";
 import { HistorySection } from "../../options/components/HistorySection.js";
 import { SyncSection } from "../../options/components/SyncSection.js";
-import { AccountsSection } from "../../options/components/AccountsSection.js";
+import { SitesSection } from "../../options/components/SitesSection.js";
 import { FaviconSection } from "./FaviconSection.js";
 import { ClipboardSection } from "./ClipboardSection.js";
 import { IconChevronRight } from "../../shared/icons.js";
@@ -165,9 +165,9 @@ export function SettingsScreen() {
               hasEntries={state.accountsCount > 0}
               onChange={refresh}
             />
-            <AccountsSection enabled={state.historyEnabled} />
             <FaviconSection enabled={state.faviconFallbackEnabled} onChange={refresh} />
             <ClipboardSection seconds={state.clipboardClearSeconds} onChange={refresh} />
+            <SitesSection sites={state.sites} onChange={refresh} />
             <SyncSection />
             <DangerSection onChange={refresh} />
           </motion.div>

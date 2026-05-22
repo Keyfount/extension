@@ -147,6 +147,25 @@ export function SyncWizard({ onClose, onConnected }: Props) {
 
       {step === "auth" ? (
         <div class="flex flex-col gap-3">
+          <div class="callout callout-info text-xs leading-relaxed">
+            <strong>À quoi servent ces champs ?</strong>
+            <ul class="m-0 mt-1.5 pl-4 list-disc flex flex-col gap-1">
+              <li>
+                L'<strong>email</strong> est ton identifiant sur ce serveur. Il ne sera jamais
+                utilisé pour t'envoyer un message — il sert uniquement à reconnaître ton compte
+                quand tu te connectes depuis un nouvel appareil. Choisis-en un et garde-le. Si tu te
+                reconnectes plus tard avec un email différent, le serveur créera un nouveau compte
+                distinct.
+              </li>
+              <li>
+                Le <strong>mot de passe maître</strong> est <em>exactement le même</em> que celui
+                que tu saisis déjà dans l'extension pour la générer les mots de passe. C'est ce qui
+                garantit que tu retrouves tes mots de passe identiques sur tes autres appareils. Il
+                ne quitte jamais ce navigateur — le serveur ne voit qu'une dérivation OPAQUE
+                incapable d'être brute-forcée.
+              </li>
+            </ul>
+          </div>
           <label class="flex flex-col gap-1.5">
             <span class="text-xs text-(--color-ink-muted)">Email</span>
             <input
@@ -160,7 +179,9 @@ export function SyncWizard({ onClose, onConnected }: Props) {
             />
           </label>
           <label class="flex flex-col gap-1.5">
-            <span class="text-xs text-(--color-ink-muted)">Mot de passe maître</span>
+            <span class="text-xs text-(--color-ink-muted)">
+              Mot de passe maître (le même que dans l'extension)
+            </span>
             <input
               ref={masterRef}
               type="password"
@@ -171,10 +192,6 @@ export function SyncWizard({ onClose, onConnected }: Props) {
               disabled={busy}
             />
           </label>
-          <p class="text-xs text-(--color-ink-muted) leading-relaxed">
-            Le mot de passe maître ne quitte jamais ce navigateur. Le serveur ne reçoit qu'une
-            dérivation OPAQUE incapable d'être brute-forcée hors-ligne.
-          </p>
           {error ? <ErrorBox message={error} /> : null}
           <div class="flex justify-between gap-2">
             <motion.button

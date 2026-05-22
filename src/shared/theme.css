@@ -279,6 +279,12 @@
   .callout-danger {
     @apply border-red-300/50 bg-red-50/60 dark:border-red-500/30 dark:bg-red-500/10;
   }
+  .callout-info {
+    @apply flex-col border-blue-300/50 bg-blue-50/60 dark:border-blue-500/30 dark:bg-blue-500/10;
+  }
+  .callout-success {
+    @apply border-emerald-300/50 bg-emerald-50/60 dark:border-emerald-500/30 dark:bg-emerald-500/10;
+  }
 
   .chip {
     @apply inline-flex items-center gap-2 h-7 px-3 rounded-full

@@ -1,7 +1,8 @@
 /**
- * Settings section for self-hosted sync. Renders either:
- *   - the "not connected" CTA + inline wizard, OR
- *   - the "connected to X" status + disconnect button.
+ * Settings section for self-hosted sync. Connection flow lives on a
+ * dedicated full-page entrypoint (sync.html) so the user has room to
+ * read explanations and isn't fighting the popup viewport. This
+ * component is just the entry point: status + open-wizard / disconnect.
  */
 import { useEffect, useState } from "preact/hooks";
 import { motion } from "framer-motion";
@@ -9,12 +10,10 @@ import { motion } from "framer-motion";
 import { send } from "../api.js";
 import { SOFT_SPRING, TAP_SCALE } from "../../shared/motion.js";
 import type { SyncSessionView } from "../../shared/messages.js";
-import { SyncWizard } from "./SyncWizard.js";
 
 export function SyncSection() {
   const [session, setSession] = useState<SyncSessionView | null>(null);
   const [loaded, setLoaded] = useState(false);
-  const [wizardOpen, setWizardOpen] = useState(false);
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
 
   async function refresh(): Promise<void> {
@@ -25,7 +24,17 @@ export function SyncSection() {
 
   useEffect(() => {
     void refresh();
+    // Refresh when the popup regains focus — the user may have just
+    // completed the wizard in another tab.
+    const onFocus = () => void refresh();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
   }, []);
+
+  function openWizard(): void {
+    const url = chrome.runtime.getURL("sync.html");
+    void chrome.tabs.create({ url });
+  }
 
   async function disconnect(): Promise<void> {
     await send({ kind: "syncDisconnect" });
@@ -47,8 +56,8 @@ export function SyncSection() {
             Synchronisation
           </h2>
           <span class="text-xs text-(--color-ink-muted) leading-snug">
-            Relie cette extension à un serveur self-hosted pour partager tes paramètres entre
-            appareils. Aucun mot de passe n'est stocké côté serveur.
+            Relie cette extension à un serveur self-hosted pour partager tes paramètres et la liste
+            de tes comptes entre appareils. Aucun mot de passe n'est stocké côté serveur.
           </span>
         </div>
       </div>
@@ -107,16 +116,18 @@ export function SyncSection() {
             </div>
           )}
         </div>
-      ) : wizardOpen ? (
-        <SyncWizard onClose={() => setWizardOpen(false)} onConnected={refresh} />
       ) : (
         <div class="card p-5 flex-col gap-3">
           <span class="text-sm text-(--color-ink)">Pas encore de serveur connecté.</span>
+          <p class="text-xs text-(--color-ink-muted) leading-relaxed">
+            L'assistant s'ouvre dans un nouvel onglet pour t'expliquer chaque étape (URL du serveur,
+            test de connexion, identifiant).
+          </p>
           <div class="flex justify-end">
             <motion.button
               type="button"
               class="btn btn-primary"
-              onClick={() => setWizardOpen(true)}
+              onClick={openWizard}
               whileTap={TAP_SCALE}
             >
               Connecter un serveur
