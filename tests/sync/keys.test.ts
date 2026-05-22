@@ -4,6 +4,7 @@ import {
   bytesToBase64Url,
   bytesToHex,
   deriveMasterKey,
+  deriveSaltSync,
   hexToUint8,
   lkToPassword,
   splitMasterKey,
@@ -58,6 +59,31 @@ describe("sync key derivation", () => {
     const pw = lkToPassword(lk);
     expect(pw).toMatch(/^[A-Za-z0-9_-]+$/);
     expect(pw.length).toBeGreaterThan(40);
+  });
+
+  it("deriveSaltSync is deterministic for the same (email, baseUrl)", async () => {
+    const a = await deriveSaltSync("alice@example.com", "https://sync.example.com");
+    const b = await deriveSaltSync("alice@example.com", "https://sync.example.com");
+    expect(bytesToHex(a)).toBe(bytesToHex(b));
+    expect(a).toHaveLength(16);
+  });
+
+  it("deriveSaltSync changes when the email changes", async () => {
+    const a = await deriveSaltSync("alice@example.com", "https://sync.example.com");
+    const b = await deriveSaltSync("bob@example.com", "https://sync.example.com");
+    expect(bytesToHex(a)).not.toBe(bytesToHex(b));
+  });
+
+  it("deriveSaltSync changes when the server URL changes", async () => {
+    const a = await deriveSaltSync("alice@example.com", "https://sync.a.example.com");
+    const b = await deriveSaltSync("alice@example.com", "https://sync.b.example.com");
+    expect(bytesToHex(a)).not.toBe(bytesToHex(b));
+  });
+
+  it("deriveSaltSync normalises email case + trims server trailing slashes", async () => {
+    const a = await deriveSaltSync("Alice@Example.com", "https://sync.example.com/");
+    const b = await deriveSaltSync("  alice@example.com", "https://sync.example.com");
+    expect(bytesToHex(a)).toBe(bytesToHex(b));
   });
 
   it("hexToUint8 round-trips with bytesToHex", () => {

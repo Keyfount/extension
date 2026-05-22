@@ -29,6 +29,8 @@ import {
   connect as syncConnect,
   disconnect as syncDisconnect,
   getSyncStatus,
+  MasterLockedError,
+  pollApproval as syncPoll,
   testConnection,
 } from "./sync/runner.js";
 import type {
@@ -46,6 +48,7 @@ import type {
   SetHistoryEnabledResponse,
   StatusResponse,
   SyncConnectResponse,
+  SyncPollApprovalResponse,
   SyncStatusResponse,
   SyncTestConnectionResponse,
   UnlockResponse,
@@ -68,7 +71,8 @@ type AnyResponse =
   | GetRecentUsernameResponse
   | SyncStatusResponse
   | SyncTestConnectionResponse
-  | SyncConnectResponse;
+  | SyncConnectResponse
+  | SyncPollApprovalResponse;
 
 export async function handleRequest(request: Request): Promise<AnyResponse> {
   try {
@@ -192,17 +196,37 @@ export async function handleRequest(request: Request): Promise<AnyResponse> {
           : { ok: true, reachable: r.reachable };
       }
       case "syncConnect": {
-        const result = await syncConnect({
-          baseUrl: request.baseUrl,
-          email: request.email,
-          master: request.master,
-          ...(request.deviceLabel !== undefined ? { deviceLabel: request.deviceLabel } : {}),
-        });
-        const status = await getSyncStatus();
-        if (!status.session) {
-          return { ok: false, error: "sync_persist_failed" };
+        try {
+          const result = await syncConnect({
+            baseUrl: request.baseUrl,
+            email: request.email,
+            ...(request.deviceLabel !== undefined ? { deviceLabel: request.deviceLabel } : {}),
+          });
+          const status = await getSyncStatus();
+          if (!status.session) {
+            return { ok: false, error: "sync_persist_failed" };
+          }
+          return { ok: true, session: status.session, loggedIn: result.loggedIn };
+        } catch (err) {
+          if (err instanceof MasterLockedError) {
+            return { ok: false, error: "locked" };
+          }
+          throw err;
         }
-        return { ok: true, session: status.session, loggedIn: result.loggedIn };
+      }
+      case "syncPollApproval": {
+        const r = await syncPoll();
+        if (r.status === "approved") {
+          const s = await getSyncStatus();
+          if (!s.session) return { ok: true, status: "no_session" };
+          return { ok: true, status: "approved", session: s.session };
+        }
+        if (r.status === "rejected") {
+          return r.reason !== undefined
+            ? { ok: true, status: "rejected", reason: r.reason }
+            : { ok: true, status: "rejected" };
+        }
+        return { ok: true, status: r.status };
       }
       case "syncDisconnect":
         await syncDisconnect();

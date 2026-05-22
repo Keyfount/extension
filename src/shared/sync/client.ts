@@ -24,8 +24,15 @@ export interface RegisterStartResponse {
 export interface RegisterFinishResponse {
   userId: string;
   deviceId: string;
-  sessionToken: string;
-  expiresAt: number;
+  /** Always "pending" since the admin-approval workflow landed. The
+   * caller polls /auth/approval-status/:userId to get a session. */
+  approvalStatus: "pending";
+}
+export interface ApprovalStatusResponse {
+  status: "pending" | "approved" | "rejected";
+  sessionToken?: string;
+  expiresAt?: number;
+  reason?: string;
 }
 export interface LoginStartResponse {
   ke2: number[];
@@ -129,6 +136,9 @@ export class SyncClient {
     deviceLabel?: string;
   }): Promise<LoginFinishResponse> {
     return this.req("POST", "/auth/opaque/login/finish", body);
+  }
+  approvalStatus(userId: string): Promise<ApprovalStatusResponse> {
+    return this.req("GET", `/auth/approval-status/${encodeURIComponent(userId)}`);
   }
 
   // --- authenticated ----------------------------------------------------

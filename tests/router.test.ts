@@ -357,3 +357,44 @@ describe("router — account history", () => {
     expect(res).toEqual({ ok: true });
   });
 }, 120_000);
+
+describe("router — sync handlers (locked state)", () => {
+  it("syncStatus on a fresh install reports not connected", async () => {
+    const res = await handleRequest({ kind: "syncStatus" });
+    if (res.ok === false) throw new Error(res.error);
+    if (!("connected" in res)) throw new Error("unexpected shape");
+    expect(res.connected).toBe(false);
+    expect(res.session).toBeNull();
+  });
+
+  it("syncTestConnection on an invalid URL returns an explainable reason", async () => {
+    const res = await handleRequest({ kind: "syncTestConnection", baseUrl: "not a url" });
+    if (res.ok === false) throw new Error(res.error);
+    if (!("reachable" in res)) throw new Error("unexpected shape");
+    expect(res.reachable).toBe(false);
+    expect(res.reason).toBe("invalid_url");
+  });
+
+  it("syncConnect refuses to act when the session is locked", async () => {
+    const res = await handleRequest({
+      kind: "syncConnect",
+      baseUrl: "https://sync.example.com",
+      email: "alice@example.com",
+    });
+    expect(res.ok).toBe(false);
+    if (res.ok) throw new Error("unreachable");
+    expect(res.error).toBe("locked");
+  });
+
+  it("syncPollApproval returns no_session when nothing is persisted", async () => {
+    const res = await handleRequest({ kind: "syncPollApproval" });
+    if (res.ok === false) throw new Error(res.error);
+    if (!("status" in res)) throw new Error("unexpected shape");
+    expect(res.status).toBe("no_session");
+  });
+
+  it("syncDisconnect is a no-op when nothing is persisted", async () => {
+    const res = await handleRequest({ kind: "syncDisconnect" });
+    expect(res).toEqual({ ok: true });
+  });
+}, 120_000);

@@ -43,7 +43,8 @@ export type Request =
   // --- server sync ---------------------------------------------------------
   | { kind: "syncStatus" }
   | { kind: "syncTestConnection"; baseUrl: string }
-  | { kind: "syncConnect"; baseUrl: string; email: string; master: string; deviceLabel?: string }
+  | { kind: "syncConnect"; baseUrl: string; email: string; deviceLabel?: string }
+  | { kind: "syncPollApproval" }
   | { kind: "syncDisconnect" };
 
 // All responses share the same shape on success; we use a small set of
@@ -54,29 +55,33 @@ export type Response<T extends Request> = T extends { kind: "syncStatus" }
     ? SyncTestConnectionResponse
     : T extends { kind: "syncConnect" }
       ? SyncConnectResponse
-      : T extends { kind: "status" }
-        ? StatusResponse
-        : T extends { kind: "unlock" | "unlockWithPin" | "setup" }
-          ? UnlockResponse
-          : T extends { kind: "fingerprint" }
-            ? FingerprintResponse
-            : T extends { kind: "generate" }
-              ? GenerateResponse
-              : T extends { kind: "getProfile" }
-                ? GetProfileResponse
-                : T extends { kind: "getState" }
-                  ? GetStateResponse
-                  : T extends { kind: "listAccounts" }
-                    ? ListAccountsResponse
-                    : T extends { kind: "recordAccount" | "updateAccountProfile" | "renameAccount" }
-                      ? RecordAccountResponse
-                      : T extends { kind: "setHistoryEnabled" }
-                        ? SetHistoryEnabledResponse
-                        : T extends { kind: "getPendingSave" }
-                          ? GetPendingSaveResponse
-                          : T extends { kind: "getRecentUsername" }
-                            ? GetRecentUsernameResponse
-                            : OkResponse;
+      : T extends { kind: "syncPollApproval" }
+        ? SyncPollApprovalResponse
+        : T extends { kind: "status" }
+          ? StatusResponse
+          : T extends { kind: "unlock" | "unlockWithPin" | "setup" }
+            ? UnlockResponse
+            : T extends { kind: "fingerprint" }
+              ? FingerprintResponse
+              : T extends { kind: "generate" }
+                ? GenerateResponse
+                : T extends { kind: "getProfile" }
+                  ? GetProfileResponse
+                  : T extends { kind: "getState" }
+                    ? GetStateResponse
+                    : T extends { kind: "listAccounts" }
+                      ? ListAccountsResponse
+                      : T extends {
+                            kind: "recordAccount" | "updateAccountProfile" | "renameAccount";
+                          }
+                        ? RecordAccountResponse
+                        : T extends { kind: "setHistoryEnabled" }
+                          ? SetHistoryEnabledResponse
+                          : T extends { kind: "getPendingSave" }
+                            ? GetPendingSaveResponse
+                            : T extends { kind: "getRecentUsername" }
+                              ? GetRecentUsernameResponse
+                              : OkResponse;
 
 export interface OkResponse {
   ok: true;
@@ -157,6 +162,8 @@ export interface SyncSessionView {
   baseUrl: string;
   email: string;
   deviceId: string;
+  userId: string;
+  approvalStatus: "pending" | "approved";
   connectedAt: number;
   lastSyncAt: number | null;
 }
@@ -183,6 +190,12 @@ export interface SyncConnectResponse {
    * false when we registered a fresh account. */
   loggedIn: boolean;
 }
+
+export type SyncPollApprovalResponse =
+  | { ok: true; status: "pending" }
+  | { ok: true; status: "approved"; session: SyncSessionView }
+  | { ok: true; status: "rejected"; reason?: string }
+  | { ok: true; status: "no_session" };
 
 /** Discriminator for `chrome.runtime.onMessage` callbacks. */
 export function isRequest(value: unknown): value is Request {
