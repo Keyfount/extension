@@ -32,7 +32,7 @@ import {
   type RegisterFinishResponse,
 } from "./client.js";
 
-const SERVER_IDENTITY = "itsmypassword-server";
+const SERVER_IDENTITY = "keyfount-server";
 const opaqueConfig = getOpaqueConfig(OpaqueID.OPAQUE_P256);
 
 interface SyncSessionCommon {

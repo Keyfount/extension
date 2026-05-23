@@ -1,4 +1,4 @@
-# ItsMyPassword
+# Keyfount
 
 > Deterministic password manager Chrome extension. No vault, no sync, no cloud — just an algorithm.
 
@@ -7,7 +7,7 @@
 
 ## How it works
 
-ItsMyPassword does not store your passwords. Instead, it **derives** them, on demand, from three inputs you provide:
+Keyfount does not store your passwords. Instead, it **derives** them, on demand, from three inputs you provide:
 
 ```
 master_password + site_domain + email  ──►  PBKDF2-SHA256 (100 000 it.)  ──►  your site password

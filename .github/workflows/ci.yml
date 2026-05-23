@@ -94,7 +94,7 @@ jobs:
       - name: Upload extension artefact
         uses: actions/upload-artifact@v4
         with:
-          name: itsmypassword-${{ matrix.target }}-${{ github.sha }}
+          name: keyfount-${{ matrix.target }}-${{ github.sha }}
           path: .output/*.zip
           retention-days: 14
           if-no-files-found: error

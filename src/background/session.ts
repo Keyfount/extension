@@ -11,7 +11,7 @@
  * master via the storage API.
  */
 const SESSION_KEY = "session.v1";
-const ALARM_NAME = "itsmypassword:auto-lock";
+const ALARM_NAME = "keyfount:auto-lock";
 
 interface SessionPayload {
   master: string;

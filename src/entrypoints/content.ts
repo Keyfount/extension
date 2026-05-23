@@ -145,7 +145,7 @@ export default defineContentScript({
       }
     }
 
-    // Context-menu "Fill with ItsMyPassword" → focus the first password
+    // Context-menu "Fill with Keyfount" → focus the first password
     // field on the page so its badge opens; the panel then handles the
     // generate + fill flow normally.
     chrome.runtime.onMessage.addListener((message) => {
@@ -165,7 +165,7 @@ export default defineContentScript({
         message !== null &&
         typeof message === "object" &&
         "kind" in message &&
-        (message as { kind: unknown }).kind === "itsmypassword:fill-here"
+        (message as { kind: unknown }).kind === "keyfount:fill-here"
       ) {
         const targets = findPasswordFields();
         const target = targets[0];

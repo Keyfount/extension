@@ -25,9 +25,9 @@ import { BackgroundError, send } from "./messaging.js";
 import atomStyles from "../shared/atoms.css?inline";
 import badgeStyles from "./badge.css?inline";
 
-const HOST_TAG = "itsmypassword-badge";
-const BANNER_TAG = "itsmypassword-save-banner";
-const ROTATE_TAG = "itsmypassword-rotate-banner";
+const HOST_TAG = "keyfount-badge";
+const BANNER_TAG = "keyfount-save-banner";
+const ROTATE_TAG = "keyfount-rotate-banner";
 
 /**
  * Write a value to an input using the prototype setter so React/Vue/etc

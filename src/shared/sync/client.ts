@@ -1,5 +1,5 @@
 /**
- * Thin typed HTTP client for the ItsMyPassword sync server (see
+ * Thin typed HTTP client for the Keyfount sync server (see
  * server/src/routes). Every method returns either a success payload or
  * throws a `SyncApiError` with the HTTP status + parsed body.
  *

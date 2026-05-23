@@ -4,7 +4,7 @@ Working draft of the public-facing copy for the store submission. Treat this as 
 
 ## Name
 
-**ItsMyPassword**
+**Keyfount**
 
 ## Short description (≤ 132 chars)
 
@@ -12,7 +12,7 @@ Working draft of the public-facing copy for the store submission. Treat this as 
 
 ## Detailed description
 
-ItsMyPassword takes a different approach to password management. It does not store your passwords anywhere — it **recomputes** them each time from three inputs:
+Keyfount takes a different approach to password management. It does not store your passwords anywhere — it **recomputes** them each time from three inputs:
 
 - your master password (which you remember)
 - the site you are signing into
@@ -33,11 +33,11 @@ The same three inputs always produce the same password. There is no vault to lea
 
 ### Privacy
 
-ItsMyPassword does not collect any data. No analytics, no telemetry, no error reporting, no third-party SDKs. The source code is open under the MIT licence at <https://github.com/ItsMyPassword/extension> and the build is reproducible from the repository.
+Keyfount does not collect any data. No analytics, no telemetry, no error reporting, no third-party SDKs. The source code is open under the MIT licence at <https://github.com/Keyfount/extension> and the build is reproducible from the repository.
 
 ### How it differs from a traditional password manager
 
-|               | Traditional vault                            | ItsMyPassword                                      |
+|               | Traditional vault                            | Keyfount                                      |
 | ------------- | -------------------------------------------- | -------------------------------------------------- |
 | Storage       | Encrypted vault, locally and/or in the cloud | Nothing stored except site preferences             |
 | Sync          | Required across devices                      | Not needed — same inputs = same passwords          |
@@ -91,7 +91,7 @@ Required certifications (the form will ask):
 
 ## Support
 
-- Source: <https://github.com/ItsMyPassword/extension>
-- Issues: <https://github.com/ItsMyPassword/extension/issues>
+- Source: <https://github.com/Keyfount/extension>
+- Issues: <https://github.com/Keyfount/extension/issues>
 - Security: see SECURITY.md
 - Privacy policy: docs/PRIVACY.md (publish on the GitHub Pages of the org before submission)

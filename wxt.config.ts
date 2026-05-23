@@ -2,7 +2,7 @@ import { defineConfig } from "wxt";
 import tailwindcss from "@tailwindcss/vite";
 
 /**
- * WXT configuration for ItsMyPassword.
+ * WXT configuration for Keyfount.
  *
  * Manifest V3 only. The extension does not request any host_permissions —
  * password-field interaction is opt-in via activeTab. Crypto, storage and

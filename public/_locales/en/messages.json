@@ -1,5 +1,5 @@
 {
-  "extName": { "message": "ItsMyPassword" },
+  "extName": { "message": "Keyfount" },
   "extDescription": {
     "message": "Deterministic password manager. No vault, no sync — just an algorithm."
   },
@@ -27,7 +27,7 @@
 
   "setup_welcome": { "message": "Welcome" },
   "setup_intro": {
-    "message": "ItsMyPassword does not store your passwords — it recomputes them from your master password each time. Choose a master you can remember. We cannot recover it."
+    "message": "Keyfount does not store your passwords — it recomputes them from your master password each time. Choose a master you can remember. We cannot recover it."
   },
   "setup_master_label": { "message": "Master password" },
   "setup_confirm_label": { "message": "Confirm" },
@@ -173,7 +173,7 @@
   "history_disable_confirm_cta": { "message": "Disable and delete" },
   "history_setup_title": { "message": "Remember your accounts?" },
   "history_setup_body": {
-    "message": "When you fill a password through the badge, ItsMyPassword can save the site and username (never the password) so you can find your accounts later. Encrypted with your master password."
+    "message": "When you fill a password through the badge, Keyfount can save the site and username (never the password) so you can find your accounts later. Encrypted with your master password."
   },
   "history_setup_enable": { "message": "Enable history" },
   "history_setup_skip": { "message": "Not now" },
@@ -210,7 +210,7 @@
 
   "favicon_section_title": { "message": "Site icons" },
   "favicon_section_hint": {
-    "message": "When the browser has no cached icon for a domain, ItsMyPassword can ask Google's public favicon service for it. Turn this off to stay 100% local (initials placeholder)."
+    "message": "When the browser has no cached icon for a domain, Keyfount can ask Google's public favicon service for it. Turn this off to stay 100% local (initials placeholder)."
   },
   "favicon_toggle_label": { "message": "Fetch missing icons from Google" },
 
@@ -224,8 +224,8 @@
   "clipboard_60s": { "message": "1 min" },
   "clipboard_120s": { "message": "2 min" },
 
-  "ctx_open_vault": { "message": "Open ItsMyPassword" },
-  "ctx_fill": { "message": "Fill with ItsMyPassword" },
+  "ctx_open_vault": { "message": "Open Keyfount" },
+  "ctx_fill": { "message": "Fill with Keyfount" },
 
   "rotate_banner_title": { "message": "Looks like a password change" },
   "rotate_banner_body": {
@@ -245,7 +245,7 @@
 
   "detail_rename_warning_title": { "message": "Renaming changes the password" },
   "detail_rename_warning_body": {
-    "message": "ItsMyPassword derives the password from your username. Saving will give you a brand-new password — you'll need to update it on the site too."
+    "message": "Keyfount derives the password from your username. Saving will give you a brand-new password — you'll need to update it on the site too."
   },
   "detail_rename_preview_label": { "message": "Future password" },
   "detail_rename_done_title": { "message": "Username updated" },

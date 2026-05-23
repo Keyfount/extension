@@ -1,4 +1,4 @@
-# ItsMyPassword — Initial Design
+# Keyfount — Initial Design
 
 **Status:** Draft · **Date:** 2026-05-20 · **Authors:** Loule
 
@@ -6,7 +6,7 @@
 
 ## 1. Vision
 
-ItsMyPassword is a **deterministic, stateless** password manager delivered as a Chrome extension. It does not store generated passwords — it recomputes them on demand from three user-controlled inputs:
+Keyfount is a **deterministic, stateless** password manager delivered as a Chrome extension. It does not store generated passwords — it recomputes them on demand from three user-controlled inputs:
 
 ```
 master_password  +  site_domain  +  email  ──►  KDF  ──►  password
@@ -119,7 +119,7 @@ type Profile = {
 To prevent silently producing wrong passwords on master typo, we store **only a fingerprint**:
 
 ```
-fingerprint = first 3 bytes of Argon2id( master, salt="itsmypassword:verify",
+fingerprint = first 3 bytes of Argon2id( master, salt="keyfount:verify",
                                           m=65536, t=3, p=1, hashLen=16 )
 ```
 
@@ -324,7 +324,7 @@ Branch protection on `main` (to be enabled when a second contributor joins): req
 ```
 extension/
 ├── docs/
-│   └── design/2026-05-20-itsmypassword-design.md   (this doc)
+│   └── design/2026-05-20-keyfount-design.md   (this doc)
 ├── src/
 │   ├── background/
 │   │   ├── index.ts                 # SW entry, message router

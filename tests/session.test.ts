@@ -48,7 +48,7 @@ describe("auto-lock", () => {
     await unlock("hunter2", 15);
     expect(await readMaster()).toBe("hunter2");
 
-    mock.alarms.__fire("itsmypassword:auto-lock");
+    mock.alarms.__fire("keyfount:auto-lock");
     // The listener kicks off lock() asynchronously; wait one tick.
     await Promise.resolve();
     await Promise.resolve();

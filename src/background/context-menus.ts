@@ -2,26 +2,26 @@
  * Right-click context menus.
  *
  *   - "Generate for this site" — visible everywhere; opens the popup.
- *   - "Fill with ItsMyPassword" — visible only on editable fields; asks
+ *   - "Fill with Keyfount" — visible only on editable fields; asks
  *     the page-side content script to focus the password input and open
  *     its badge panel.
  */
 import { registrableDomain } from "../shared/domain.js";
 
-const OPEN_VAULT_ID = "itsmypassword:open-vault";
-const FILL_FIELD_ID = "itsmypassword:fill-field";
+const OPEN_VAULT_ID = "keyfount:open-vault";
+const FILL_FIELD_ID = "keyfount:fill-field";
 
 export function registerContextMenus(): void {
   const create = () => {
     chrome.contextMenus.removeAll(() => {
       chrome.contextMenus.create({
         id: OPEN_VAULT_ID,
-        title: chrome.i18n.getMessage("ctx_open_vault") || "Open ItsMyPassword",
+        title: chrome.i18n.getMessage("ctx_open_vault") || "Open Keyfount",
         contexts: ["all"],
       });
       chrome.contextMenus.create({
         id: FILL_FIELD_ID,
-        title: chrome.i18n.getMessage("ctx_fill") || "Fill with ItsMyPassword",
+        title: chrome.i18n.getMessage("ctx_fill") || "Fill with Keyfount",
         contexts: ["editable"],
       });
     });
@@ -41,7 +41,7 @@ export function registerContextMenus(): void {
       const domain = tab.url ? registrableDomain(tab.url) : null;
       chrome.tabs
         .sendMessage(tab.id, {
-          kind: "itsmypassword:fill-here",
+          kind: "keyfount:fill-here",
           domain,
         })
         .catch(() => {

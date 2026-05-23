@@ -10,7 +10,7 @@
  * Only one timer is active at a time; arming overrides any previous
  * pending clear. Cancelling clears the alarm without writing.
  */
-const ALARM_NAME = "itsmypassword:clipboard-clear";
+const ALARM_NAME = "keyfount:clipboard-clear";
 
 let currentToken: string | null = null;
 

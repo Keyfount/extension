@@ -10,7 +10,7 @@
  */
 import { argon2id } from "hash-wasm";
 
-const FINGERPRINT_SALT = new TextEncoder().encode("itsmypassword:verify");
+const FINGERPRINT_SALT = new TextEncoder().encode("keyfount:verify");
 
 const FINGERPRINT_PARAMS = {
   memorySize: 65536,

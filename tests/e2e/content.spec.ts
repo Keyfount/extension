@@ -22,6 +22,6 @@ test("badge is injected next to password fields on a real http origin", async ({
 
   // Two badges are attached per login form (one on the password field,
   // one on its associated username/email field).
-  await expect(tab.locator("itsmypassword-badge").first()).toBeAttached({ timeout: 15_000 });
-  await expect(tab.locator("itsmypassword-badge")).toHaveCount(2, { timeout: 15_000 });
+  await expect(tab.locator("keyfount-badge").first()).toBeAttached({ timeout: 15_000 });
+  await expect(tab.locator("keyfount-badge")).toHaveCount(2, { timeout: 15_000 });
 });

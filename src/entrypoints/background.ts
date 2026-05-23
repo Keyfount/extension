@@ -3,7 +3,7 @@
  *
  * Wires the message router to chrome.runtime.onMessage, registers the
  * auto-lock and clipboard-clear alarm handlers, and creates the context
- * menus that let the user fire ItsMyPassword from a right-click. All
+ * menus that let the user fire Keyfount from a right-click. All
  * logic lives in `../background/*` so it stays testable without
  * instantiating a chrome runtime.
  */

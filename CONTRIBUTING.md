@@ -1,4 +1,4 @@
-# Contributing to ItsMyPassword
+# Contributing to Keyfount
 
 Thank you for considering a contribution! Because this project handles user credentials, we hold the bar high on code quality, testability, and security.
 
@@ -58,6 +58,6 @@ Anything touching the **crypto module**, **storage**, or **content-script messag
 
 ## Reporting bugs / requesting features
 
-Open a [GitHub issue](https://github.com/ItsMyPassword/extension/issues) using the appropriate template.
+Open a [GitHub issue](https://github.com/Keyfount/extension/issues) using the appropriate template.
 
 For **security vulnerabilities**, see [SECURITY.md](./SECURITY.md) — do not open a public issue.

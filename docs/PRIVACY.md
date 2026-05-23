@@ -4,11 +4,11 @@
 
 ## Short version
 
-ItsMyPassword does not collect, transmit, store or share any personal data. Everything happens on your computer, inside your browser. We have no servers, no telemetry, no analytics, no error reporting and no third-party SDKs.
+Keyfount does not collect, transmit, store or share any personal data. Everything happens on your computer, inside your browser. We have no servers, no telemetry, no analytics, no error reporting and no third-party SDKs.
 
 ## What the extension processes locally
 
-To do its job, ItsMyPassword reads and computes the following on your machine:
+To do its job, Keyfount reads and computes the following on your machine:
 
 | Data                 | When                                                      | Where it goes                                                                                                                                          |
 | -------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -42,7 +42,7 @@ If you enable PIN mode in the settings, your master password is encrypted with A
 
 ## Open source
 
-The full source code is available at <https://github.com/ItsMyPassword/extension> under the MIT licence. Anyone can audit the algorithm and verify that the bundle does no network I/O.
+The full source code is available at <https://github.com/Keyfount/extension> under the MIT licence. Anyone can audit the algorithm and verify that the bundle does no network I/O.
 
 ## Optional: saved accounts
 
@@ -55,4 +55,4 @@ list immediately.
 
 ## Contact
 
-Open an issue at <https://github.com/ItsMyPassword/extension/issues>. For security reports, see [SECURITY.md](../SECURITY.md).
+Open an issue at <https://github.com/Keyfount/extension/issues>. For security reports, see [SECURITY.md](../SECURITY.md).

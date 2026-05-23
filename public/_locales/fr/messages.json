@@ -1,5 +1,5 @@
 {
-  "extName": { "message": "ItsMyPassword" },
+  "extName": { "message": "Keyfount" },
   "extDescription": {
     "message": "Gestionnaire de mots de passe déterministe. Pas de coffre, pas de sync — juste un algorithme."
   },
@@ -27,7 +27,7 @@
 
   "setup_welcome": { "message": "Bienvenue" },
   "setup_intro": {
-    "message": "ItsMyPassword ne stocke aucun mot de passe — il les recalcule à chaque fois depuis votre mot de passe maître. Choisissez-en un que vous pouvez retenir. Nous ne pouvons pas le récupérer."
+    "message": "Keyfount ne stocke aucun mot de passe — il les recalcule à chaque fois depuis votre mot de passe maître. Choisissez-en un que vous pouvez retenir. Nous ne pouvons pas le récupérer."
   },
   "setup_master_label": { "message": "Mot de passe maître" },
   "setup_confirm_label": { "message": "Confirmation" },
@@ -173,7 +173,7 @@
   "history_disable_confirm_cta": { "message": "Désactiver et supprimer" },
   "history_setup_title": { "message": "Mémoriser tes comptes ?" },
   "history_setup_body": {
-    "message": "Quand tu remplis un mot de passe via le badge, ItsMyPassword peut enregistrer le site et l'identifiant (jamais le mot de passe) pour t'aider à retrouver tes comptes. Chiffré avec ton mot de passe maître."
+    "message": "Quand tu remplis un mot de passe via le badge, Keyfount peut enregistrer le site et l'identifiant (jamais le mot de passe) pour t'aider à retrouver tes comptes. Chiffré avec ton mot de passe maître."
   },
   "history_setup_enable": { "message": "Activer l'historique" },
   "history_setup_skip": { "message": "Plus tard" },
@@ -210,7 +210,7 @@
 
   "favicon_section_title": { "message": "Icônes des sites" },
   "favicon_section_hint": {
-    "message": "Quand le navigateur n'a pas l'icône d'un site en cache, ItsMyPassword peut la demander au service public de Google. Désactive pour rester 100% local (placeholder à base d'initiales)."
+    "message": "Quand le navigateur n'a pas l'icône d'un site en cache, Keyfount peut la demander au service public de Google. Désactive pour rester 100% local (placeholder à base d'initiales)."
   },
   "favicon_toggle_label": { "message": "Récupérer les icônes manquantes via Google" },
 
@@ -224,8 +224,8 @@
   "clipboard_60s": { "message": "1 min" },
   "clipboard_120s": { "message": "2 min" },
 
-  "ctx_open_vault": { "message": "Ouvrir ItsMyPassword" },
-  "ctx_fill": { "message": "Remplir avec ItsMyPassword" },
+  "ctx_open_vault": { "message": "Ouvrir Keyfount" },
+  "ctx_fill": { "message": "Remplir avec Keyfount" },
 
   "rotate_banner_title": { "message": "Changement de mot de passe ?" },
   "rotate_banner_body": {
@@ -245,7 +245,7 @@
 
   "detail_rename_warning_title": { "message": "Renommer change aussi le mot de passe" },
   "detail_rename_warning_body": {
-    "message": "ItsMyPassword dérive le mot de passe à partir de l'identifiant. Valider te donnera un tout nouveau mot de passe — pense à le mettre à jour sur le site aussi."
+    "message": "Keyfount dérive le mot de passe à partir de l'identifiant. Valider te donnera un tout nouveau mot de passe — pense à le mettre à jour sur le site aussi."
   },
   "detail_rename_preview_label": { "message": "Futur mot de passe" },
   "detail_rename_done_title": { "message": "Identifiant mis à jour" },

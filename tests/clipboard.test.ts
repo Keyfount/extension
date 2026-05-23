@@ -42,7 +42,7 @@ describe("clipboard auto-clear scheduler", () => {
     ).chrome.runtime.sendMessage = sendMessage;
     registerClipboardClearHandler();
     await armClipboardClear(10);
-    mock.alarms.__fire("itsmypassword:clipboard-clear");
+    mock.alarms.__fire("keyfount:clipboard-clear");
     expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({ kind: "clipboard:clear" }));
   });
 });

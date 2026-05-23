@@ -369,7 +369,7 @@ function humanReachReason(reason?: string): string {
     case "network_error":
       return "Impossible de joindre l'URL. Vérifie qu'elle est accessible et que CORS est configuré pour cette extension.";
     case "unexpected_payload":
-      return "L'URL répond mais ne ressemble pas à un serveur ItsMyPassword.";
+      return "L'URL répond mais ne ressemble pas à un serveur Keyfount.";
     default:
       if (reason !== undefined && reason.startsWith("http_")) {
         return `Le serveur a répondu ${reason.slice(5)}.`;
