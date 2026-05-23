@@ -37,7 +37,7 @@ Keyfount does not collect any data. No analytics, no telemetry, no error reporti
 
 ### How it differs from a traditional password manager
 
-|               | Traditional vault                            | Keyfount                                      |
+|               | Traditional vault                            | Keyfount                                           |
 | ------------- | -------------------------------------------- | -------------------------------------------------- |
 | Storage       | Encrypted vault, locally and/or in the cloud | Nothing stored except site preferences             |
 | Sync          | Required across devices                      | Not needed — same inputs = same passwords          |
