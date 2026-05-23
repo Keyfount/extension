@@ -670,8 +670,7 @@ export function AccountDetailScreen() {
         </span>
         {lastSyncedAt !== null ? (
           <span class="text-xs text-(--color-ink-subtle)">
-            Synchronisé {formatRelativeAge(lastSyncedAt.ts)}{" "}
-            {directionPreposition(lastSyncedAt.dir)} le serveur.
+            {formatSyncStatus(lastSyncedAt)}
           </span>
         ) : null}
         {confirmingDelete ? (
@@ -753,15 +752,18 @@ export function AccountDetailScreen() {
 }
 
 /**
- * Returns the preposition that fits the sync direction:
- *  - push (we uploaded our state) → "vers"
- *  - pull (we received remote state) → "depuis"
- *  - unknown (legacy entry) → "avec"
+ * Builds an explicit sync status line so the direction (upload vs. download)
+ * is obvious to the user — e.g. "Synchronisé sur le serveur il y a 3 min (Upload)".
  */
-function directionPreposition(dir: SyncStamp["dir"]): string {
-  if (dir === "push") return "vers";
-  if (dir === "pull") return "depuis";
-  return "avec";
+function formatSyncStatus(stamp: SyncStamp): string {
+  const age = formatRelativeAge(stamp.ts);
+  if (stamp.dir === "push") {
+    return `Synchronisé sur le serveur ${age} (Upload).`;
+  }
+  if (stamp.dir === "pull") {
+    return `Synchronisé depuis le serveur ${age} (Download).`;
+  }
+  return `Synchronisé avec le serveur ${age}.`;
 }
 
 /** Returns "à l'instant" / "il y a 12 min" / "il y a 3 h" / "il y a 2 j". */
