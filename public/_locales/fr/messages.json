@@ -252,5 +252,39 @@
   "detail_rename_done_body": {
     "message": "N'oublie pas de définir le nouveau mot de passe sur le site."
   },
-  "detail_rename_done_copy": { "message": "Copier le nouveau mdp" }
+  "detail_rename_done_copy": { "message": "Copier le nouveau mdp" },
+
+  "sync_force_send": { "message": "Forcer l'envoi" },
+  "sync_force_send_busy": { "message": "Envoi en cours…" },
+  "sync_force_send_hint": {
+    "message": "Re-envoie un upsert pour chacun de tes comptes locaux. Utile pour réparer une dérive ou ré-alimenter un serveur fraîchement réinitialisé."
+  },
+  "sync_force_receive": { "message": "Forcer la réception" },
+  "sync_force_receive_busy": { "message": "Réception…" },
+  "sync_force_receive_hint": {
+    "message": "Re-télécharge tous les événements serveur et les applique. Utile après une connexion depuis un autre appareil."
+  },
+  "sync_force_no_session": {
+    "message": "Aucun serveur connecté ou session verrouillée."
+  },
+  "sync_force_push_ok": {
+    "message": "$COUNT$ comptes envoyés.",
+    "placeholders": { "count": { "content": "$1" } }
+  },
+  "sync_force_push_ok_with_failures": {
+    "message": "$COUNT$ comptes envoyés · $FAILED$ échec(s).",
+    "placeholders": { "count": { "content": "$1" }, "failed": { "content": "$2" } }
+  },
+  "sync_force_pull_ok": {
+    "message": "$COUNT$ événements appliqués.",
+    "placeholders": { "count": { "content": "$1" } }
+  },
+  "sync_force_pull_ok_with_skipped": {
+    "message": "$COUNT$ événements appliqués · $SKIPPED$ ignorés.",
+    "placeholders": { "count": { "content": "$1" }, "skipped": { "content": "$2" } }
+  },
+  "sync_force_error": {
+    "message": "Échec : $MESSAGE$",
+    "placeholders": { "message": { "content": "$1" } }
+  }
 }

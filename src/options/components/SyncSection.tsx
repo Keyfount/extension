@@ -9,6 +9,7 @@ import { motion } from "framer-motion";
 import { send } from "../api.js";
 import { screen } from "../../popup/state.js";
 import { IconDownload, IconUpload } from "../../shared/icons.js";
+import { t } from "../../shared/i18n.js";
 import { SOFT_SPRING, TAP_SCALE } from "../../shared/motion.js";
 import type { SyncSessionView } from "../../shared/messages.js";
 
@@ -120,10 +121,10 @@ export function SyncSection() {
                   onClick={() => void forcePush()}
                   disabled={forceBusy !== null}
                   whileTap={TAP_SCALE}
-                  title="Re-envoie un upsert pour chacun de tes comptes locaux. Utile pour réparer une dérive ou ré-alimenter un serveur fraîchement réinitialisé."
+                  title={t("sync_force_send_hint")}
                 >
                   <IconUpload size={14} />
-                  {forceBusy === "push" ? "Envoi en cours…" : "Forcer l'envoi"}
+                  {forceBusy === "push" ? t("sync_force_send_busy") : t("sync_force_send")}
                 </motion.button>
                 <motion.button
                   type="button"
@@ -131,10 +132,10 @@ export function SyncSection() {
                   onClick={() => void forcePull()}
                   disabled={forceBusy !== null}
                   whileTap={TAP_SCALE}
-                  title="Re-télécharge tous les événements serveur et les applique. Utile après une connexion depuis un autre appareil."
+                  title={t("sync_force_receive_hint")}
                 >
                   <IconDownload size={14} />
-                  {forceBusy === "pull" ? "Réception…" : "Forcer la réception"}
+                  {forceBusy === "pull" ? t("sync_force_receive_busy") : t("sync_force_receive")}
                 </motion.button>
               </div>
               {forceResult !== null ? <ForceResultBox result={forceResult} /> : null}
@@ -218,7 +219,7 @@ function ForceResultBox({ result }: { result: ForceFeedback }) {
   if ("error" in result) {
     return (
       <div class="callout callout-danger text-xs" role="status">
-        Échec : {result.error}
+        {t("sync_force_error", result.error)}
       </div>
     );
   }
@@ -226,29 +227,34 @@ function ForceResultBox({ result }: { result: ForceFeedback }) {
     if (result.pushed === null) {
       return (
         <div class="callout text-xs" role="status">
-          Aucun serveur connecté ou session verrouillée.
+          {t("sync_force_no_session")}
         </div>
       );
     }
+    const message =
+      result.failed !== null && result.failed > 0
+        ? t("sync_force_push_ok_with_failures", String(result.pushed), String(result.failed))
+        : t("sync_force_push_ok", String(result.pushed));
     return (
       <div class="callout callout-success text-xs" role="status">
-        {result.pushed} compte{result.pushed > 1 ? "s" : ""} envoyé{result.pushed > 1 ? "s" : ""}
-        {result.failed !== null && result.failed > 0 ? ` · ${result.failed} échec(s)` : ""}.
+        {message}
       </div>
     );
   }
   if (result.applied === null) {
     return (
       <div class="callout text-xs" role="status">
-        Aucun serveur connecté ou session verrouillée.
+        {t("sync_force_no_session")}
       </div>
     );
   }
+  const message =
+    result.skipped !== null && result.skipped > 0
+      ? t("sync_force_pull_ok_with_skipped", String(result.applied), String(result.skipped))
+      : t("sync_force_pull_ok", String(result.applied));
   return (
     <div class="callout callout-success text-xs" role="status">
-      {result.applied} événement{result.applied > 1 ? "s" : ""} appliqué
-      {result.applied > 1 ? "s" : ""}
-      {result.skipped !== null && result.skipped > 0 ? ` · ${result.skipped} ignoré(s)` : ""}.
+      {message}
     </div>
   );
 }

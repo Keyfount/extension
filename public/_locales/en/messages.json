@@ -252,5 +252,39 @@
   "detail_rename_done_body": {
     "message": "Don't forget to set the new password on the site as well."
   },
-  "detail_rename_done_copy": { "message": "Copy the new password" }
+  "detail_rename_done_copy": { "message": "Copy the new password" },
+
+  "sync_force_send": { "message": "Force upload" },
+  "sync_force_send_busy": { "message": "Uploading…" },
+  "sync_force_send_hint": {
+    "message": "Re-emits an upsert event for every local account. Useful to repair drift or to re-populate a freshly reset server."
+  },
+  "sync_force_receive": { "message": "Force download" },
+  "sync_force_receive_busy": { "message": "Downloading…" },
+  "sync_force_receive_hint": {
+    "message": "Re-downloads every server event and applies them locally. Useful after connecting from another device."
+  },
+  "sync_force_no_session": {
+    "message": "No server connected or session locked."
+  },
+  "sync_force_push_ok": {
+    "message": "$COUNT$ accounts uploaded.",
+    "placeholders": { "count": { "content": "$1" } }
+  },
+  "sync_force_push_ok_with_failures": {
+    "message": "$COUNT$ accounts uploaded · $FAILED$ failure(s).",
+    "placeholders": { "count": { "content": "$1" }, "failed": { "content": "$2" } }
+  },
+  "sync_force_pull_ok": {
+    "message": "$COUNT$ events applied.",
+    "placeholders": { "count": { "content": "$1" } }
+  },
+  "sync_force_pull_ok_with_skipped": {
+    "message": "$COUNT$ events applied · $SKIPPED$ skipped.",
+    "placeholders": { "count": { "content": "$1" }, "skipped": { "content": "$2" } }
+  },
+  "sync_force_error": {
+    "message": "Error: $MESSAGE$",
+    "placeholders": { "message": { "content": "$1" } }
+  }
 }
