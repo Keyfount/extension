@@ -55,6 +55,7 @@ import {
   getAllLastSyncedAt,
   getLastSyncedAt,
   pullEvents as enginePull,
+  pushAllAccounts as enginePushAll,
   syncAccountChange,
 } from "./sync/engine.js";
 import type {
@@ -77,6 +78,7 @@ import type {
   SyncConnectResponse,
   SyncPollApprovalResponse,
   SyncPullResponse,
+  SyncPushAllResponse,
   SyncStatusResponse,
   SyncTestConnectionResponse,
   UnlockResponse,
@@ -104,6 +106,7 @@ type AnyResponse =
   | GetAccountSyncInfoResponse
   | GetSyncMapResponse
   | SyncPullResponse
+  | SyncPushAllResponse
   | ListVaultsResponse;
 
 export async function handleRequest(request: Request): Promise<AnyResponse> {
@@ -302,6 +305,13 @@ export async function handleRequest(request: Request): Promise<AnyResponse> {
           return { ok: true, applied: null, skipped: null, cursor: null };
         }
         return { ok: true, applied: r.applied, skipped: r.skipped, cursor: r.cursor };
+      }
+      case "syncPushAll": {
+        const r = await enginePushAll();
+        if (r === null) {
+          return { ok: true, pushed: null, failed: null };
+        }
+        return { ok: true, pushed: r.pushed, failed: r.failed };
       }
     }
   } catch (error) {

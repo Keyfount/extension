@@ -8,13 +8,21 @@ import { motion } from "framer-motion";
 
 import { send } from "../api.js";
 import { screen } from "../../popup/state.js";
+import { IconDownload, IconUpload } from "../../shared/icons.js";
 import { SOFT_SPRING, TAP_SCALE } from "../../shared/motion.js";
 import type { SyncSessionView } from "../../shared/messages.js";
+
+type ForceFeedback =
+  | { dir: "push"; pushed: number | null; failed: number | null }
+  | { dir: "pull"; applied: number | null; skipped: number | null }
+  | { dir: "push" | "pull"; error: string };
 
 export function SyncSection() {
   const [session, setSession] = useState<SyncSessionView | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
+  const [forceBusy, setForceBusy] = useState<"push" | "pull" | null>(null);
+  const [forceResult, setForceResult] = useState<ForceFeedback | null>(null);
 
   async function refresh(): Promise<void> {
     const res = await send({ kind: "syncStatus" });
@@ -34,6 +42,32 @@ export function SyncSection() {
     await send({ kind: "syncDisconnect" });
     setConfirmDisconnect(false);
     await refresh();
+  }
+
+  async function forcePush(): Promise<void> {
+    setForceBusy("push");
+    setForceResult(null);
+    try {
+      const r = await send({ kind: "syncPushAll" });
+      setForceResult({ dir: "push", pushed: r.pushed, failed: r.failed });
+    } catch (err) {
+      setForceResult({ dir: "push", error: err instanceof Error ? err.message : String(err) });
+    } finally {
+      setForceBusy(null);
+    }
+  }
+
+  async function forcePull(): Promise<void> {
+    setForceBusy("pull");
+    setForceResult(null);
+    try {
+      const r = await send({ kind: "syncPull" });
+      setForceResult({ dir: "pull", applied: r.applied, skipped: r.skipped });
+    } catch (err) {
+      setForceResult({ dir: "pull", error: err instanceof Error ? err.message : String(err) });
+    } finally {
+      setForceBusy(null);
+    }
   }
 
   return (
@@ -77,7 +111,35 @@ export function SyncSection() {
               En attente d'approbation par l'administrateur du serveur. Ouvre la page
               Synchronisation pour suivre le statut en temps réel.
             </p>
-          ) : null}
+          ) : (
+            <div class="flex-col gap-2">
+              <div class="flex gap-2">
+                <motion.button
+                  type="button"
+                  class="btn btn-quiet text-xs flex-1 justify-center"
+                  onClick={() => void forcePush()}
+                  disabled={forceBusy !== null}
+                  whileTap={TAP_SCALE}
+                  title="Re-envoie un upsert pour chacun de tes comptes locaux. Utile pour réparer une dérive ou ré-alimenter un serveur fraîchement réinitialisé."
+                >
+                  <IconUpload size={14} />
+                  {forceBusy === "push" ? "Envoi en cours…" : "Forcer l'envoi"}
+                </motion.button>
+                <motion.button
+                  type="button"
+                  class="btn btn-quiet text-xs flex-1 justify-center"
+                  onClick={() => void forcePull()}
+                  disabled={forceBusy !== null}
+                  whileTap={TAP_SCALE}
+                  title="Re-télécharge tous les événements serveur et les applique. Utile après une connexion depuis un autre appareil."
+                >
+                  <IconDownload size={14} />
+                  {forceBusy === "pull" ? "Réception…" : "Forcer la réception"}
+                </motion.button>
+              </div>
+              {forceResult !== null ? <ForceResultBox result={forceResult} /> : null}
+            </div>
+          )}
           {confirmDisconnect ? (
             <div class="callout callout-danger flex-col gap-3" role="alertdialog">
               <span>
@@ -149,6 +211,45 @@ export function SyncSection() {
         </div>
       )}
     </motion.section>
+  );
+}
+
+function ForceResultBox({ result }: { result: ForceFeedback }) {
+  if ("error" in result) {
+    return (
+      <div class="callout callout-danger text-xs" role="status">
+        Échec : {result.error}
+      </div>
+    );
+  }
+  if (result.dir === "push") {
+    if (result.pushed === null) {
+      return (
+        <div class="callout text-xs" role="status">
+          Aucun serveur connecté ou session verrouillée.
+        </div>
+      );
+    }
+    return (
+      <div class="callout callout-success text-xs" role="status">
+        {result.pushed} compte{result.pushed > 1 ? "s" : ""} envoyé{result.pushed > 1 ? "s" : ""}
+        {result.failed !== null && result.failed > 0 ? ` · ${result.failed} échec(s)` : ""}.
+      </div>
+    );
+  }
+  if (result.applied === null) {
+    return (
+      <div class="callout text-xs" role="status">
+        Aucun serveur connecté ou session verrouillée.
+      </div>
+    );
+  }
+  return (
+    <div class="callout callout-success text-xs" role="status">
+      {result.applied} événement{result.applied > 1 ? "s" : ""} appliqué
+      {result.applied > 1 ? "s" : ""}
+      {result.skipped !== null && result.skipped > 0 ? ` · ${result.skipped} ignoré(s)` : ""}.
+    </div>
   );
 }
 

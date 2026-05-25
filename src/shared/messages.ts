@@ -53,7 +53,8 @@ export type Request =
   | { kind: "syncDisconnect" }
   | { kind: "getAccountSyncInfo"; domain: string; username: string }
   | { kind: "getSyncMap" }
-  | { kind: "syncPull" };
+  | { kind: "syncPull" }
+  | { kind: "syncPushAll" };
 
 // All responses share the same shape on success; we use a small set of
 // payload types and let TS pick the right one via the discriminator.
@@ -100,7 +101,9 @@ export type Response<T extends Request> = T extends { kind: "listVaults" }
                                     ? GetPendingSaveResponse
                                     : T extends { kind: "getRecentUsername" }
                                       ? GetRecentUsernameResponse
-                                      : OkResponse;
+                                      : T extends { kind: "syncPushAll" }
+                                        ? SyncPushAllResponse
+                                        : OkResponse;
 
 export interface OkResponse {
   ok: true;
@@ -258,6 +261,15 @@ export interface SyncPullResponse {
   applied: number | null;
   skipped: number | null;
   cursor: number | null;
+}
+
+export interface SyncPushAllResponse {
+  ok: true;
+  /** Number of accounts whose upsert was accepted by the server.
+   * null when no approved session exists (no server, locked, or pending). */
+  pushed: number | null;
+  /** Accounts skipped because the push throw (network, auth, etc). */
+  failed: number | null;
 }
 
 /** Discriminator for `chrome.runtime.onMessage` callbacks. */

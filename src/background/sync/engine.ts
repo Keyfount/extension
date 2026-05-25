@@ -18,6 +18,7 @@ import { SyncClient } from "../../shared/sync/client.js";
 import type { SyncOp } from "../../shared/sync/payload.js";
 import {
   deleteAccount,
+  listAccounts,
   recordAccount,
   renameAccount,
   updateAccountProfile,
@@ -180,6 +181,40 @@ export async function syncAccountChange(args: {
     // network errors via Fastify-style request tracing on its side.
     void err;
   }
+}
+
+/**
+ * Re-emit an upsert event for every locally-known account, in the order
+ * returned by listAccounts. Used by the "Force send" button: lets the
+ * user repair drift after an incident (server wiped, account restored
+ * from backup, etc.) without having to mutate each entry by hand.
+ *
+ * Returns null when no approved session is connected; otherwise returns
+ * a summary of how many upserts the server accepted vs. how many threw.
+ */
+export async function pushAllAccounts(): Promise<{ pushed: number; failed: number } | null> {
+  const ctx = await loadApprovedContext();
+  if (ctx === null) return null;
+
+  const state = await loadState();
+  const entries = await listAccounts(ctx.master, undefined, fallbackFor(state));
+
+  let pushed = 0;
+  let failed = 0;
+  for (const entry of entries) {
+    try {
+      const acceptedAt = await pushOp({ t: "upsert_account", entry }, ctx);
+      if (acceptedAt !== null) {
+        await recordSyncedAt(entry.domain, entry.username, acceptedAt, "push");
+        pushed++;
+      } else {
+        failed++;
+      }
+    } catch {
+      failed++;
+    }
+  }
+  return { pushed, failed };
 }
 
 // --- pull ------------------------------------------------------------------
