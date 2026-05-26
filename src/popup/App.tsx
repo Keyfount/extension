@@ -79,16 +79,12 @@ async function bootstrap() {
     await loadVaultData();
     screen.value = "main";
 
-    // Fire-and-forget cross-device convergence. Order MATTERS:
-    //   1. Pull what other devices pushed since we last looked. If
-    //      they deleted something, we apply the `delete_account` op
-    //      now and our local copy goes away. If they added
-    //      something, we render it. Reload the vault if anything
-    //      changed.
-    //   2. Push every local account THAT STILL EXISTS. Pushing
-    //      first would re-emit upserts for accounts another device
-    //      just deleted — the delete would silently undo because
-    //      we don't keep tombstones locally.
+    // Pull-only on popup open. We no longer bulk-push the whole
+    // local list at every open: that was racing inbound
+    // `delete_account` events from other devices and silently
+    // resurrecting them. Mutations push individually via
+    // `syncAccountChange`; an explicit "Force send" stays available
+    // from the sync settings for the rare drift-recovery case.
     void (async () => {
       try {
         const r = await send({ kind: "syncPull" });
@@ -97,11 +93,6 @@ async function bootstrap() {
         }
       } catch {
         /* offline, locked, no server — silent */
-      }
-      try {
-        await send({ kind: "syncPushAll" });
-      } catch {
-        /* bootstrap push best-effort */
       }
     })();
   } catch (error) {

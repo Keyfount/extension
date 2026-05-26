@@ -2,14 +2,12 @@
  * Vault list. Each row opens the account-detail page on click; a per-row
  * "⋮" menu exposes copy username / copy password / open / delete inline.
  */
-import { useEffect, useMemo, useState } from "preact/hooks";
+import { useMemo, useState } from "preact/hooks";
 import { motion } from "framer-motion";
 import { Favicon } from "./Favicon.js";
 import { AccountRowMenu } from "./AccountRowMenu.js";
-import { send } from "../api.js";
 import { t } from "../../shared/i18n.js";
 import { SOFT_SPRING, TAP_SCALE } from "../../shared/motion.js";
-import type { SyncStamp } from "../../shared/messages.js";
 import type { AccountEntry } from "../../shared/types.js";
 import { activeDomain, allAccounts, screen, selectedAccount } from "../state.js";
 
@@ -19,43 +17,6 @@ interface Props {
 
 export function AccountList({ onAddNew }: Props) {
   const [query, setQuery] = useState("");
-  const [syncConnected, setSyncConnected] = useState(false);
-  const [syncMap, setSyncMap] = useState<Record<string, SyncStamp>>({});
-
-  useEffect(() => {
-    let cancelled = false;
-    let timer: ReturnType<typeof setInterval> | null = null;
-
-    async function refresh(): Promise<void> {
-      try {
-        const status = await send({ kind: "syncStatus" });
-        if (cancelled) return;
-        const approved = status.connected && status.session?.approvalStatus === "approved";
-        setSyncConnected(approved);
-        if (approved) {
-          const m = await send({ kind: "getSyncMap" });
-          if (!cancelled) setSyncMap(m.map);
-        }
-      } catch {
-        /* silent */
-      }
-    }
-
-    void refresh();
-
-    // The bootstrap push (popup/App.tsx) and the periodic background
-    // pull both write into the syncMap AFTER this component mounted —
-    // a one-shot fetch would leave the orange "pending" badge in
-    // place until the user reopens the popup. Polling every 2 s
-    // catches the update mid-session without much cost (it's a tiny
-    // chrome.storage.local read).
-    timer = setInterval(() => void refresh(), 2000);
-
-    return () => {
-      cancelled = true;
-      if (timer !== null) clearInterval(timer);
-    };
-  }, []);
 
   const sorted = useMemo(() => {
     const entries = allAccounts.value;
@@ -138,17 +99,7 @@ export function AccountList({ onAddNew }: Props) {
                     }
                   }}
                 >
-                  <Favicon
-                    domain={entry.domain}
-                    size={32}
-                    {...(syncConnected
-                      ? {
-                          syncBadge: (syncMap[entry.domain + entry.username] !== undefined
-                            ? "synced"
-                            : "pending") as "synced" | "pending",
-                        }
-                      : {})}
-                  />
+                  <Favicon domain={entry.domain} size={32} />
                   <span class="flex flex-col flex-1 min-w-0 text-left">
                     <span class="text-sm font-medium truncate text-(--color-ink)">
                       {entry.domain}
