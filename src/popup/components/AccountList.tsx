@@ -24,7 +24,9 @@ export function AccountList({ onAddNew }: Props) {
 
   useEffect(() => {
     let cancelled = false;
-    void (async () => {
+    let timer: ReturnType<typeof setInterval> | null = null;
+
+    async function refresh(): Promise<void> {
       try {
         const status = await send({ kind: "syncStatus" });
         if (cancelled) return;
@@ -37,9 +39,21 @@ export function AccountList({ onAddNew }: Props) {
       } catch {
         /* silent */
       }
-    })();
+    }
+
+    void refresh();
+
+    // The bootstrap push (popup/App.tsx) and the periodic background
+    // pull both write into the syncMap AFTER this component mounted —
+    // a one-shot fetch would leave the orange "pending" badge in
+    // place until the user reopens the popup. Polling every 2 s
+    // catches the update mid-session without much cost (it's a tiny
+    // chrome.storage.local read).
+    timer = setInterval(() => void refresh(), 2000);
+
     return () => {
       cancelled = true;
+      if (timer !== null) clearInterval(timer);
     };
   }, []);
 

@@ -79,21 +79,17 @@ async function bootstrap() {
     await loadVaultData();
     screen.value = "main";
 
-    // Fire-and-forget cross-device convergence:
-    //   1. Push every local account we know about (idempotent on the
-    //      receiver — `applyOp` checks (domain, username) presence)
-    //      so anything created before sync existed, or before the
-    //      `syncAccountChange` hook ran, finally makes it server-
-    //      side.
-    //   2. Pull what other devices pushed since we last looked. If
-    //      anything new arrived, reload the vault so the user sees
-    //      it without re-opening the popup.
+    // Fire-and-forget cross-device convergence. Order MATTERS:
+    //   1. Pull what other devices pushed since we last looked. If
+    //      they deleted something, we apply the `delete_account` op
+    //      now and our local copy goes away. If they added
+    //      something, we render it. Reload the vault if anything
+    //      changed.
+    //   2. Push every local account THAT STILL EXISTS. Pushing
+    //      first would re-emit upserts for accounts another device
+    //      just deleted — the delete would silently undo because
+    //      we don't keep tombstones locally.
     void (async () => {
-      try {
-        await send({ kind: "syncPushAll" });
-      } catch {
-        /* bootstrap push best-effort */
-      }
       try {
         const r = await send({ kind: "syncPull" });
         if (r.applied !== null && r.applied > 0) {
@@ -101,6 +97,11 @@ async function bootstrap() {
         }
       } catch {
         /* offline, locked, no server — silent */
+      }
+      try {
+        await send({ kind: "syncPushAll" });
+      } catch {
+        /* bootstrap push best-effort */
       }
     })();
   } catch (error) {
