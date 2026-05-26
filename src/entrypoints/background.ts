@@ -12,6 +12,7 @@ import { handleRequest } from "../background/router.js";
 import { hardenSessionStorage, registerAutoLockHandler } from "../background/session.js";
 import { registerClipboardClearHandler } from "../background/clipboard.js";
 import { registerContextMenus } from "../background/context-menus.js";
+import { registerSyncPollHandler, scheduleSyncPoll } from "../background/sync/poll.js";
 import { isRequest } from "../shared/messages.js";
 
 export default defineBackground(() => {
@@ -19,6 +20,8 @@ export default defineBackground(() => {
   registerAutoLockHandler();
   registerClipboardClearHandler();
   registerContextMenus();
+  registerSyncPollHandler();
+  void scheduleSyncPoll();
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (!isRequest(message)) {
