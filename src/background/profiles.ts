@@ -92,6 +92,10 @@ export function syncLastAtKey(id: string): string {
   return profileKey(id, "sync.lastSyncAt.v1");
 }
 
+export function syncPendingOpsKey(id: string): string {
+  return profileKey(id, "sync.pendingOps.v1");
+}
+
 async function readRegistry(): Promise<Registry | null> {
   const { [REGISTRY_KEY]: raw } = await chrome.storage.local.get(REGISTRY_KEY);
   if (!raw || typeof raw !== "object") return null;
@@ -293,6 +297,7 @@ export async function deleteProfile(id: string): Promise<void> {
     syncCursorKey(id),
     syncLamportKey(id),
     syncLastAtKey(id),
+    syncPendingOpsKey(id),
   ]);
 }
 
@@ -336,6 +341,7 @@ export async function wipeAllProfiles(): Promise<void> {
         syncCursorKey(p.id),
         syncLamportKey(p.id),
         syncLastAtKey(p.id),
+        syncPendingOpsKey(p.id),
       );
     }
     await chrome.storage.local.remove(keys);
