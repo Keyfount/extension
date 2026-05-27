@@ -10,6 +10,11 @@
  *
  * Failures are swallowed — the local state is the source of truth; the
  * server is best-effort. Network or auth issues do not block the popup.
+ *
+ * The lastSyncAt map is itself AES-GCM-encrypted on disk under a key
+ * derived from the master (PBKDF2 200k); its keys are
+ * `${domain}${username}` which previously leaked the user's account list
+ * to anyone who could read `chrome.storage.local`. See SECURITY.md.
  */
 import type { AccountEntry } from "../../shared/types.js";
 import { deriveEncryptionKey, type SyncSession } from "../../shared/sync/auth.js";
@@ -26,8 +31,17 @@ import {
 } from "../accounts.js";
 import { effectiveProfile, loadState, updateState } from "../storage.js";
 import { getActiveProfileId, requireActiveProfileId, syncLastAtKey } from "../profiles.js";
+import { deriveAesGcmKey } from "../crypto/index.js";
 import { readMaster } from "../session.js";
 import { bumpLamport, loadCursor, loadSession, saveCursor } from "./session-store.js";
+
+/**
+ * PBKDF2 / AES-GCM parameters for the lastSyncAt blob. Same recipe as the
+ * state and accounts envelopes — see SECURITY.md "Storage threat boundary".
+ */
+const LAST_SYNC_CIPHER_ITERATIONS = 200_000;
+const LAST_SYNC_CIPHER_SALT_LENGTH = 16;
+const LAST_SYNC_CIPHER_IV_LENGTH = 12;
 
 export type SyncDirection = "push" | "pull";
 
@@ -39,6 +53,13 @@ export interface SyncStamp {
 
 interface LastSyncMap {
   [accountKey: string]: SyncStamp;
+}
+
+interface CipherBlob {
+  ciphertext: string;
+  iv: string;
+  salt: string;
+  iterations: number;
 }
 
 /** Coerce a stored value into a {@link SyncStamp}, accepting legacy bare numbers. */
@@ -59,18 +80,65 @@ function key(domain: string, username: string): string {
   return `${domain}${username}`;
 }
 
+function isCipherBlob(value: unknown): value is CipherBlob {
+  if (value === null || typeof value !== "object") return false;
+  const v = value as Partial<CipherBlob>;
+  return (
+    typeof v.ciphertext === "string" &&
+    typeof v.iv === "string" &&
+    typeof v.salt === "string" &&
+    typeof v.iterations === "number"
+  );
+}
+
+function normaliseMap(raw: Record<string, unknown>): LastSyncMap {
+  const out: LastSyncMap = {};
+  for (const [k, v] of Object.entries(raw)) {
+    const stamp = normaliseStamp(v);
+    if (stamp !== null) out[k] = stamp;
+  }
+  return out;
+}
+
+/**
+ * Read the lastSyncAt map. Encrypted on disk under the master; if the vault
+ * is locked, returns an empty map so the caller can no-op gracefully (the
+ * sync engine already swallows missing-master cases).
+ *
+ * Detects and rewrites legacy plaintext maps on first read post-update.
+ */
 async function loadLastSyncMap(): Promise<LastSyncMap> {
   const id = await getActiveProfileId();
   if (id === null) return {};
   const storageKey = syncLastAtKey(id);
   const { [storageKey]: raw } = await chrome.storage.local.get(storageKey);
-  if (raw === undefined || typeof raw !== "object" || raw === null) return {};
-  const out: LastSyncMap = {};
-  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
-    const stamp = normaliseStamp(v);
-    if (stamp !== null) out[k] = stamp;
+  if (raw === undefined || raw === null || typeof raw !== "object") return {};
+
+  if (isCipherBlob(raw)) {
+    const master = await readMaster();
+    if (master === null) return {};
+    try {
+      const plain = await decryptMap(master, raw);
+      return normaliseMap(plain);
+    } catch {
+      return {};
+    }
   }
-  return out;
+
+  // Legacy plaintext shape: a dict whose values are bare numbers or
+  // `{ ts, dir }` records. Normalise in memory, and if the master is
+  // available, rewrite the blob in the encrypted shape.
+  const map = normaliseMap(raw as Record<string, unknown>);
+  const master = await readMaster();
+  if (master !== null) {
+    await writeLastSyncMap(id, map, master);
+  }
+  return map;
+}
+
+async function writeLastSyncMap(id: string, map: LastSyncMap, master: string): Promise<void> {
+  const blob = await encryptMap(master, map);
+  await chrome.storage.local.set({ [syncLastAtKey(id)]: blob });
 }
 
 async function recordSyncedAt(
@@ -80,9 +148,11 @@ async function recordSyncedAt(
   dir: SyncDirection,
 ): Promise<void> {
   const id = await requireActiveProfileId();
+  const master = await readMaster();
+  if (master === null) return;
   const map = await loadLastSyncMap();
   map[key(domain, username)] = { ts, dir };
-  await chrome.storage.local.set({ [syncLastAtKey(id)]: map });
+  await writeLastSyncMap(id, map, master);
 }
 
 export async function getLastSyncedAt(domain: string, username: string): Promise<SyncStamp | null> {
@@ -172,7 +242,7 @@ export async function syncAccountChange(args: {
         const map = await loadLastSyncMap();
         delete map[key(args.domain, args.oldUsername)];
         map[key(args.domain, args.username)] = { ts: acceptedAt, dir: "push" };
-        await chrome.storage.local.set({ [syncLastAtKey(id)]: map });
+        await writeLastSyncMap(id, map, ctx.master);
       }
     }
   } catch (err) {
@@ -358,3 +428,49 @@ async function applyOp(op: SyncOp, ctx: ApprovedContext): Promise<void> {
 // updateAccountProfile is used indirectly via recordAccount upsert (same
 // table). Reference it to silence the unused-import warning.
 void updateAccountProfile;
+
+// --- lastSyncAt envelope ---------------------------------------------------
+
+async function encryptMap(master: string, map: LastSyncMap): Promise<CipherBlob> {
+  const salt = crypto.getRandomValues(new Uint8Array(LAST_SYNC_CIPHER_SALT_LENGTH));
+  const iv = crypto.getRandomValues(new Uint8Array(LAST_SYNC_CIPHER_IV_LENGTH));
+  const aesKey = await deriveAesGcmKey(master, salt, LAST_SYNC_CIPHER_ITERATIONS);
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv: iv as BufferSource },
+    aesKey,
+    new TextEncoder().encode(JSON.stringify(map)) as BufferSource,
+  );
+  return {
+    ciphertext: bytesToBase64(new Uint8Array(ciphertext)),
+    iv: bytesToBase64(iv),
+    salt: bytesToBase64(salt),
+    iterations: LAST_SYNC_CIPHER_ITERATIONS,
+  };
+}
+
+async function decryptMap(master: string, blob: CipherBlob): Promise<Record<string, unknown>> {
+  const salt = base64ToBytes(blob.salt);
+  const iv = base64ToBytes(blob.iv);
+  const ciphertext = base64ToBytes(blob.ciphertext);
+  const aesKey = await deriveAesGcmKey(master, salt, blob.iterations);
+  const plain = await crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: iv as BufferSource },
+    aesKey,
+    ciphertext as BufferSource,
+  );
+  const parsed = JSON.parse(new TextDecoder().decode(plain));
+  return parsed !== null && typeof parsed === "object" ? (parsed as Record<string, unknown>) : {};
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let bin = "";
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin);
+}
+
+function base64ToBytes(base64: string): Uint8Array {
+  const bin = atob(base64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}

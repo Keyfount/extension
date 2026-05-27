@@ -35,7 +35,10 @@ import { clearPendingSave, getPendingSave, setPendingSave } from "./pending.js";
 import { getRecentUsername, setRecentUsername } from "./recent-username.js";
 import { armClipboardClear, cancelClipboardClear } from "./clipboard.js";
 import {
+  DEFAULT_CLIPBOARD_CLEAR_SECONDS,
+  SCHEMA_VERSION,
   effectiveProfile,
+  loadBootManifest,
   loadState,
   saveStateFor,
   updateState,
@@ -330,14 +333,16 @@ async function handleStatus(): Promise<StatusResponse> {
       hasPin: false,
     };
   }
-  const state = await loadState();
+  // Status is rendered before the unlock screen, so we can't decrypt the
+  // state here — only the plaintext boot manifest is available.
+  const manifest = await loadBootManifest();
   const ses = await sessionStatus();
   return {
     ok: true,
     locked: ses.locked,
-    isFirstRun: state.fingerprint === undefined,
-    fingerprint: state.fingerprint ?? null,
-    hasPin: state.pin !== undefined,
+    isFirstRun: manifest.fingerprint === undefined,
+    fingerprint: manifest.fingerprint ?? null,
+    hasPin: manifest.pin !== undefined,
   };
 }
 
@@ -353,14 +358,17 @@ async function handleSetup(
 
   // Setup either populates the active (empty) profile or creates a fresh
   // one. Both paths converge on saving the StoredState with the fingerprint
-  // and unlocking the session.
+  // and unlocking the session. Setup runs *before* unlock, so we can't read
+  // any pre-existing encrypted state — but a fresh profile has nothing
+  // encrypted to read, and the "already set up" guard only needs the
+  // plaintext boot manifest.
   const activeId = await getActiveProfileId();
   let targetId: string;
   if (activeId === null) {
     const created = await createProfile(fingerprint);
     targetId = created.id;
   } else {
-    const existing = await loadState();
+    const existing = await loadBootManifest();
     if (existing.fingerprint !== undefined) {
       // The active profile already has a master — refuse to overwrite. The
       // caller should have routed to "create new profile" instead.
@@ -370,28 +378,36 @@ async function handleSetup(
     await updateProfileFingerprint(targetId, fingerprint);
   }
 
-  const baseState = await loadState();
+  // A brand-new profile has no encrypted state to read; start from defaults.
+  const baseManifest = await loadBootManifest();
   const nextState: StoredState = {
-    ...baseState,
+    schemaVersion: SCHEMA_VERSION,
+    defaultProfile: defaultProfile ?? DEFAULT_RANDOM_PROFILE,
+    autoLockMinutes: baseManifest.autoLockMinutes,
+    historyEnabled: false,
+    faviconFallbackEnabled: true,
+    clipboardClearSeconds: DEFAULT_CLIPBOARD_CLEAR_SECONDS,
     fingerprint,
-    defaultProfile: defaultProfile ?? baseState.defaultProfile,
+    sites: {},
   };
-  await saveStateFor(targetId, nextState);
+  await saveStateFor(targetId, nextState, master);
 
   await unlock(master, nextState.autoLockMinutes);
   return { ok: true, fingerprint };
 }
 
 async function handleUnlock(master: string): Promise<UnlockResponse | ErrorResponse> {
-  const state = await loadState();
-  if (state.fingerprint === undefined) {
+  // Locked-vault path: the boot manifest carries the fingerprint and
+  // autoLockMinutes without needing the master.
+  const manifest = await loadBootManifest();
+  if (manifest.fingerprint === undefined) {
     return { ok: false, error: "extension has not been set up" };
   }
   const candidate = formatFingerprint(await fingerprintMaster(master));
-  if (candidate !== state.fingerprint) {
+  if (candidate !== manifest.fingerprint) {
     return { ok: false, error: "incorrect master password" };
   }
-  await unlock(master, state.autoLockMinutes);
+  await unlock(master, manifest.autoLockMinutes);
   await touchActiveProfile();
   return { ok: true, fingerprint: candidate };
 }
@@ -445,16 +461,17 @@ async function handleDeleteProfile(domain: string): Promise<void> {
 }
 
 async function handleUnlockWithPin(pin: string): Promise<UnlockResponse | ErrorResponse> {
-  const state = await loadState();
-  if (state.pin === undefined || state.fingerprint === undefined) {
+  // Locked-vault path: the boot manifest carries the PIN blob.
+  const manifest = await loadBootManifest();
+  if (manifest.pin === undefined || manifest.fingerprint === undefined) {
     return { ok: false, error: "PIN mode is not enabled" };
   }
-  const master = await decryptMaster(state.pin, pin);
+  const master = await decryptMaster(manifest.pin, pin);
   if (master === null) {
     return { ok: false, error: "incorrect PIN" };
   }
-  await unlock(master, state.autoLockMinutes);
-  return { ok: true, fingerprint: state.fingerprint };
+  await unlock(master, manifest.autoLockMinutes);
+  return { ok: true, fingerprint: manifest.fingerprint };
 }
 
 async function handleSetPin(pin: string): Promise<OkResponse | ErrorResponse> {

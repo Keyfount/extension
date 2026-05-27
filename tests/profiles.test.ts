@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { installChromeMock } from "./helpers/chrome-mock.js";
+import { installChromeMock, TEST_MASTER } from "./helpers/chrome-mock.js";
 import {
+  bootManifestKey,
   createProfile,
   deleteProfile,
   getActiveProfileId,
@@ -13,6 +14,16 @@ import { loadState, saveState } from "../src/background/storage.js";
 import { DEFAULT_RANDOM_PROFILE } from "../src/shared/types.js";
 
 const mock = installChromeMock();
+
+async function seedMaster(): Promise<void> {
+  await chrome.storage.session.set({
+    "session.v1": {
+      master: TEST_MASTER,
+      unlockedAt: Date.now(),
+      autoLockMinutes: 15,
+    },
+  });
+}
 
 beforeEach(() => {
   mock.reset();
@@ -85,9 +96,10 @@ describe("profile registry — CRUD", () => {
     const a = await createProfile("aa");
     const b = await createProfile("bb");
     await setActiveProfile(a.id);
+    await seedMaster();
     // Seed some data under a's namespace via saveState.
     await saveState({
-      schemaVersion: 4,
+      schemaVersion: 5,
       defaultProfile: DEFAULT_RANDOM_PROFILE,
       autoLockMinutes: 15,
       historyEnabled: false,
@@ -99,8 +111,9 @@ describe("profile registry — CRUD", () => {
     expect((await loadState()).fingerprint).toBe("aa");
     await deleteProfile(a.id);
     expect(await getActiveProfileId()).toBe(b.id);
-    const after = await chrome.storage.local.get(stateKey(a.id));
+    const after = await chrome.storage.local.get([stateKey(a.id), bootManifestKey(a.id)]);
     expect(after[stateKey(a.id)]).toBeUndefined();
+    expect(after[bootManifestKey(a.id)]).toBeUndefined();
   });
 
   it("deleteProfile leaves activeId null when nothing remains", async () => {
@@ -113,8 +126,9 @@ describe("profile registry — CRUD", () => {
 describe("wipeAllProfiles", () => {
   it("clears every namespaced key and the registry", async () => {
     const a = await createProfile("aa");
+    await seedMaster();
     await saveState({
-      schemaVersion: 4,
+      schemaVersion: 5,
       defaultProfile: DEFAULT_RANDOM_PROFILE,
       autoLockMinutes: 15,
       historyEnabled: false,
@@ -125,7 +139,8 @@ describe("wipeAllProfiles", () => {
     });
     await wipeAllProfiles();
     expect(await getActiveProfileId()).toBeNull();
-    const after = await chrome.storage.local.get(stateKey(a.id));
+    const after = await chrome.storage.local.get([stateKey(a.id), bootManifestKey(a.id)]);
     expect(after[stateKey(a.id)]).toBeUndefined();
+    expect(after[bootManifestKey(a.id)]).toBeUndefined();
   });
 });

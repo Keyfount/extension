@@ -9,7 +9,8 @@
  * Storage layout once a registry exists:
  *
  *   profiles.registry.v1                          → this module
- *   profiles.{id}.state.v1                        → storage.ts
+ *   profiles.{id}.bootManifest.v1                 → storage.ts (plaintext)
+ *   profiles.{id}.state.v1                        → storage.ts (encrypted)
  *   profiles.{id}.accountsCipher                  → accounts.ts
  *   profiles.{id}.sync.session.v1                 → sync/session-store.ts
  *   profiles.{id}.sync.cursor.v1
@@ -59,6 +60,16 @@ function profileKey(id: string, suffix: string): string {
 
 export function stateKey(id: string): string {
   return profileKey(id, "state.v1");
+}
+
+/**
+ * Plaintext boot manifest key. Mirrors {@link stateKey} but holds only the
+ * fields the unlock screen needs before the master is available
+ * (schemaVersion, fingerprint, pin, autoLockMinutes). Everything else lives
+ * inside the encrypted blob at {@link stateKey}.
+ */
+export function bootManifestKey(id: string): string {
+  return profileKey(id, "bootManifest.v1");
 }
 
 export function accountsKey(id: string): string {
@@ -276,6 +287,7 @@ export async function deleteProfile(id: string): Promise<void> {
   await writeRegistry(next);
   await chrome.storage.local.remove([
     stateKey(id),
+    bootManifestKey(id),
     accountsKey(id),
     syncSessionKey(id),
     syncCursorKey(id),
@@ -318,6 +330,7 @@ export async function wipeAllProfiles(): Promise<void> {
     for (const p of registry.profiles) {
       keys.push(
         stateKey(p.id),
+        bootManifestKey(p.id),
         accountsKey(p.id),
         syncSessionKey(p.id),
         syncCursorKey(p.id),

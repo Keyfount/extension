@@ -69,13 +69,23 @@ function createAlarmsApi(): AlarmsApi {
   };
 }
 
+/** Master used by the test helpers when seeding an unlocked session. */
+export const TEST_MASTER = "correct horse battery staple";
+
 /**
  * Force an active vault profile so storage-touching modules can write without
  * tripping the "no_active_profile" guard. Seeds the legacy state.v1 key so
  * the first read triggers the registry migration — same path production uses
  * on upgrade from a single-vault install.
+ *
+ * Also seeds an unlocked session with {@link TEST_MASTER} so callers can
+ * exercise the now-encrypted state writer without setting up the master
+ * separately. Pass `lock: true` to skip the session seed (useful when the
+ * test wants to assert locked-vault behaviour).
  */
-export async function bootstrapTestProfile(opts: { fingerprint?: string } = {}): Promise<void> {
+export async function bootstrapTestProfile(
+  opts: { fingerprint?: string; lock?: boolean } = {},
+): Promise<void> {
   await chrome.storage.local.set({
     "state.v1": {
       schemaVersion: 4,
@@ -96,7 +106,17 @@ export async function bootstrapTestProfile(opts: { fingerprint?: string } = {}):
       sites: {},
     },
   });
-  // First read triggers migration; we discard the result.
+  if (opts.lock !== true) {
+    await chrome.storage.session.set({
+      "session.v1": {
+        master: TEST_MASTER,
+        unlockedAt: Date.now(),
+        autoLockMinutes: 15,
+      },
+    });
+  }
+  // First read triggers the legacy → namespaced key migration and (when
+  // unlocked) splits the document into a plaintext manifest + cipher blob.
   const { loadState } = await import("../../src/background/storage.js");
   await loadState();
 }
