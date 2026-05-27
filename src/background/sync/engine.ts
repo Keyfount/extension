@@ -20,7 +20,11 @@ import type { AccountEntry } from "../../shared/types.js";
 import { deriveEncryptionKey, type SyncSession } from "../../shared/sync/auth.js";
 import { decryptJson, encryptJson } from "../../shared/sync/crypto.js";
 import { SyncClient } from "../../shared/sync/client.js";
-import type { SyncOp } from "../../shared/sync/payload.js";
+import {
+  normaliseDecodedState,
+  type SyncableState,
+  type SyncOp,
+} from "../../shared/sync/payload.js";
 import {
   deleteAccount,
   listAccounts,
@@ -35,6 +39,7 @@ import { deriveAesGcmKey } from "../crypto/index.js";
 import { readMaster } from "../session.js";
 import { drainPendingOps, enqueuePendingOp } from "./pending.js";
 import { bumpLamport, loadCursor, loadSession, saveCursor } from "./session-store.js";
+import { loadTombstones, mergeTombstones } from "./tombstones.js";
 
 /**
  * PBKDF2 / AES-GCM parameters for the lastSyncAt blob. Same recipe as the
@@ -308,10 +313,21 @@ async function stampForOp(op: SyncOp, acceptedAt: number, ctx: ApprovedContext):
  * user repair drift after an incident (server wiped, account restored
  * from backup, etc.) without having to mutate each entry by hand.
  *
+ * Tombstone-aware: any (domain, username) present in the local
+ * tombstone log is skipped here AND its `delete_account` op is
+ * pushed to the server so peers learn about it. The extension
+ * doesn't ship snapshots, so the server's `/events` log is the only
+ * way for a tombstone to reach a peer.
+ *
  * Returns null when no approved session is connected; otherwise returns
- * a summary of how many upserts the server accepted vs. how many threw.
+ * a summary of how many upserts/deletes the server accepted vs. how
+ * many threw.
  */
-export async function pushAllAccounts(): Promise<{ pushed: number; failed: number } | null> {
+export async function pushAllAccounts(): Promise<{
+  pushed: number;
+  failed: number;
+  deleted: number;
+} | null> {
   const ctx = await loadApprovedContext();
   if (ctx === null) return null;
 
@@ -325,10 +341,18 @@ export async function pushAllAccounts(): Promise<{ pushed: number; failed: numbe
 
   const state = await loadState();
   const entries = await listAccounts(ctx.master, undefined, fallbackFor(state));
+  const tombstones = await loadTombstones();
+  const tombKeys = new Set(tombstones.map((t) => `${t.domain}|${t.username}`));
 
   let pushed = 0;
   let failed = 0;
+  let deleted = 0;
   for (const entry of entries) {
+    // Defence in depth: if a tombstone exists for a locally-present
+    // entry, the local accounts blob is out of sync with the
+    // tombstone log. Trust the tombstone and skip the upsert — the
+    // delete_account event below will still propagate.
+    if (tombKeys.has(`${entry.domain}|${entry.username}`)) continue;
     try {
       const acceptedAt = await pushOp({ t: "upsert_account", entry }, ctx);
       if (acceptedAt !== null) {
@@ -341,7 +365,24 @@ export async function pushAllAccounts(): Promise<{ pushed: number; failed: numbe
       failed++;
     }
   }
-  return { pushed, failed };
+
+  // Flush every tombstone as a `delete_account` event. The extension
+  // never pushes snapshots, so this is the only way for a peer to
+  // learn about a delete that originated here. Idempotent server-
+  // side — re-emitting an already-recorded delete is a no-op.
+  for (const t of tombstones) {
+    try {
+      const acceptedAt = await pushOp(
+        { t: "delete_account", domain: t.domain, username: t.username },
+        ctx,
+      );
+      if (acceptedAt !== null) deleted++;
+    } catch {
+      /* tracked by the retry queue from PR #71 once the failure
+       * comes through syncAccountChange — here we're best-effort. */
+    }
+  }
+  return { pushed, failed, deleted };
 }
 
 // --- pull ------------------------------------------------------------------
@@ -389,8 +430,33 @@ export async function pullEvents(): Promise<PullResult | null> {
     let applied = 0;
     let skipped = 0;
     let cursor = since;
-    let cont = true;
 
+    // First-pull or post-rotation path: fetch the latest snapshot too
+    // so a fresh install whose server has already had its events
+    // compacted converges on the right state. Subsequent calls (with
+    // cursor > 0) skip this because the previous pull caught up.
+    if (since === 0) {
+      try {
+        const snap = await client.latestSnapshot();
+        if (snap !== null) {
+          const state = normaliseDecodedState(
+            (await decryptJson(
+              aesKey,
+              Uint8Array.from(snap.ciphertext),
+              Uint8Array.from(snap.nonce),
+            )) as unknown,
+          );
+          await applyStateAuthoritatively(state, ctx);
+          applied += state.accounts.length;
+          cursor = snap.upToSeq;
+          await saveCursor(cursor);
+        }
+      } catch {
+        // Snapshot fetch / decrypt failed — fall through to /events.
+      }
+    }
+
+    let cont = true;
     while (cont) {
       const page = await client.pullEvents(cursor, 200);
       for (const ev of page.events) {
@@ -426,9 +492,80 @@ const fallbackFor = (state: Awaited<ReturnType<typeof loadState>>): ProfileFallb
   return (domain) => effectiveProfile(state, domain);
 };
 
+/**
+ * Apply a decoded SyncableState v2 snapshot authoritatively.
+ *
+ * Mirrors the desktop side's `applyStateLocally`:
+ *   - prefs / sites / default profile are taken from the snapshot
+ *   - accounts named in `state.tombstones` are removed locally
+ *   - incoming tombstones are merged into the local log so this
+ *     device carries them forward on the next push
+ *   - accounts in `state.accounts` not present locally are added,
+ *     skipping any whose `(domain, username)` is tombstoned
+ *
+ * Account creation goes through the same `recordAccount` helper as
+ * UI-driven creation; `clearTombstone` runs as part of that, which
+ * is fine here because the apply order is "tombstones first", so a
+ * row that survives to step 3 cannot be tombstoned.
+ */
+async function applyStateAuthoritatively(
+  state: SyncableState,
+  ctx: ApprovedContext,
+): Promise<void> {
+  // 1) Prefs and per-site profiles.
+  await updateState((s) => ({
+    ...s,
+    defaultProfile: state.defaultProfile,
+    sites: { ...s.sites, ...state.sites },
+    historyEnabled: state.historyEnabled,
+    faviconFallbackEnabled: state.faviconFallbackEnabled,
+  }));
+
+  // 2) Apply tombstones BEFORE accounts so a delete here can never be
+  //    silently undone by a later upsert in the same snapshot.
+  const tombKeys = new Set(state.tombstones.map((t) => `${t.domain}|${t.username}`));
+  if (state.tombstones.length > 0) {
+    const stateAfterPrefs = await loadState();
+    const localEntries = await listAccounts(ctx.master, undefined, fallbackFor(stateAfterPrefs));
+    for (const e of localEntries) {
+      if (tombKeys.has(`${e.domain}|${e.username}`)) {
+        await deleteAccount(ctx.master, e.domain, e.username, fallbackFor(stateAfterPrefs));
+      }
+    }
+    // `deleteAccount` already appended a tombstone for each row it
+    // removed. Now make sure every tombstone in the incoming
+    // snapshot is in our log too (including those whose row never
+    // existed locally), so we carry them forward.
+    await mergeTombstones(state.tombstones);
+  }
+
+  // 3) Add accounts present in the snapshot that the local device
+  //    doesn't have yet. Skip any pair the snapshot itself
+  //    tombstoned (defence in depth — the snapshot's originating
+  //    device should have filtered those before encoding).
+  const stateAfterDeletes = await loadState();
+  const fallback = fallbackFor(stateAfterDeletes);
+  for (const entry of state.accounts) {
+    if (tombKeys.has(`${entry.domain}|${entry.username}`)) continue;
+    await recordAccount(ctx.master, entry.domain, entry.username, entry.profile, fallback);
+    await recordSyncedAt(entry.domain, entry.username, Date.now(), "pull");
+  }
+}
+
 async function applyOp(op: SyncOp, ctx: ApprovedContext): Promise<void> {
   switch (op.t) {
     case "upsert_account": {
+      // Tombstones are authoritative for deletes. If we recorded a
+      // tombstone for this (domain, username) — typically because
+      // the user deleted it on this device — refuse to recreate the
+      // row even when a peer streams an upsert. Without this guard
+      // we'd ping-pong: peer upserts → we recreate → we re-emit
+      // delete → peer re-upserts. The tombstone breaks the loop.
+      const tombstones = await loadTombstones();
+      const suppressed = tombstones.some(
+        (t) => t.domain === op.entry.domain && t.username === op.entry.username,
+      );
+      if (suppressed) return;
       const state = await loadState();
       // recordAccount is upsert-by-(domain, username) so we can use it
       // for both create and update.
@@ -445,6 +582,11 @@ async function applyOp(op: SyncOp, ctx: ApprovedContext): Promise<void> {
       return;
     }
     case "delete_account": {
+      // `deleteAccount` already appends a tombstone in
+      // background/accounts.ts — no need to do it twice. The local
+      // accounts row is removed AND the tombstone is recorded so the
+      // next snapshot (or pushAllAccounts) can broadcast the delete
+      // to other peers.
       const state = await loadState();
       await deleteAccount(ctx.master, op.domain, op.username, fallbackFor(state));
       return;

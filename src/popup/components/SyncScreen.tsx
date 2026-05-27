@@ -28,21 +28,28 @@ import { loadVaultData } from "../vault.js";
  * Fire-and-forget post-connect bootstrap. The moment the session
  * lands on `approved` (either via the synchronous `syncConnect`
  * response or via the `syncPollApproval` admin-approval poll), we
- * (a) push every locally-known account so the server gets caught
- * up with what was already on this device, and (b) pull whatever
- * the server already had. Then we reload the popup vault so the
- * account list rerenders with the merged state — otherwise the
- * user has to close + reopen the popup to see anything change.
+ * (a) PULL first so any remote deletes (carried in the v2 snapshot's
+ * tombstone field) are applied locally before we re-emit our own
+ * upserts, then (b) push every locally-known account so the server
+ * gets caught up with what was already on this device. Finally we
+ * reload the popup vault so the account list rerenders with the
+ * merged state — otherwise the user has to close + reopen the popup
+ * to see anything change.
+ *
+ * Pull-then-push is the same order the desktop client uses for
+ * `pushAllLocalAccountsAndPull`; before #70 the extension did the
+ * inverse (push-then-pull) and resurrected freshly-deleted accounts
+ * on every reconnect — see Trigger 1 in Keyfount/desktop#54.
  */
 function onSessionApproved(): void {
   void (async () => {
     try {
-      await send({ kind: "syncPushAll" });
+      await send({ kind: "syncPull" });
     } catch {
       /* best-effort */
     }
     try {
-      await send({ kind: "syncPull" });
+      await send({ kind: "syncPushAll" });
     } catch {
       /* best-effort */
     }

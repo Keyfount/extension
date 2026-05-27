@@ -13,6 +13,7 @@
  */
 import { deriveAesGcmKey } from "./crypto/index.js";
 import { accountsKey, getActiveProfileId, requireActiveProfileId } from "./profiles.js";
+import { appendTombstone, clearTombstone } from "./sync/tombstones.js";
 import { DEFAULT_RANDOM_PROFILE, type AccountEntry, type Profile } from "../shared/types.js";
 
 const ITERATIONS = 200_000;
@@ -69,6 +70,14 @@ export async function recordAccount(
     entries.push(entry);
   }
   await writeAll(master, entries);
+  // Re-creating a (domain, username) the user had previously deleted
+  // must clear its tombstone — otherwise the next authoritative
+  // snapshot apply would silently remove the new row.
+  try {
+    await clearTombstone(domain, username);
+  } catch {
+    /* best-effort; the new row is already written */
+  }
   return entry;
 }
 
@@ -125,8 +134,22 @@ export async function deleteAccount(
 ): Promise<void> {
   const { entries } = await readAll(master, fallback);
   const next = entries.filter((e) => !(e.domain === domain && e.username === username));
-  if (next.length === entries.length) return;
-  await writeAll(master, next);
+  const existed = next.length !== entries.length;
+  if (existed) {
+    await writeAll(master, next);
+  }
+  // Record the tombstone whether or not the row was locally present —
+  // the cross-device delete contract says peers must be told even
+  // when this device only learned about the (domain, username)
+  // through the delete intent (e.g. forwarded via the popup before a
+  // pull).
+  try {
+    await appendTombstone({ domain, username, deletedAt: Date.now() });
+  } catch {
+    /* best-effort; if the master is locked the local delete still
+     * succeeded — the tombstone will be recreated on the next user
+     * action that re-derives it. */
+  }
 }
 
 /**
