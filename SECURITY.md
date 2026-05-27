@@ -52,6 +52,13 @@ Everything else lives inside an AES-GCM blob at `profiles.{id}.state.v1`:
 - `sites` (per-site generation overrides — the field that motivated the encryption split)
 - `historyEnabled`, `faviconFallbackEnabled`, `clipboardClearSeconds` (user preferences)
 
-The encrypted account history (`profiles.{id}.accountsCipher`) and the sync session blobs use the same envelope independently — they were already encrypted before this layer.
+The encrypted account history (`profiles.{id}.accountsCipher`) uses the same envelope independently.
+
+The sync-scoped blobs are encrypted under the same envelope:
+
+- `profiles.{id}.sync.session.v1` — wraps the OPAQUE session (`devicePrivkey`, `sessionToken`, `saltSync`, `ekFingerprint`, `email`, `baseUrl`, etc.). This matches the desktop client, which seals the equivalent blob under the master KEK.
+- `profiles.{id}.sync.lastSyncAt.v1` — wraps the `${domain}${username} → { ts, dir }` map. Its keys are the user's full account list and were the headline plaintext leak from issue #68.
+
+The cursor (`profiles.{id}.sync.cursor.v1`) and Lamport counter (`profiles.{id}.sync.lamport.v1`) are single integers and intentionally left in clear. The vault registry (`profiles.registry.v1`) is also clear: it indexes vaults across masters and sits outside any single vault's scope.
 
 `chrome.storage.session` (the unlocked master, the `pendingSaves` map, the in-tab clipboard timer) is in-memory only, wiped on browser close, and not part of this boundary.
