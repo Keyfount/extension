@@ -11,6 +11,7 @@
  */
 import { useEffect, useState } from "preact/hooks";
 import { faviconUrl } from "../../shared/favicon.js";
+import { t } from "../../shared/i18n.js";
 import { faviconFallbackEnabled } from "../state.js";
 
 interface Props {
@@ -66,7 +67,7 @@ export function Favicon({ domain, size = 32, syncBadge }: Props) {
 
 function SyncBadge({ state, parentSize }: { state: "synced" | "pending"; parentSize: number }) {
   const dotSize = Math.max(8, Math.round(parentSize * 0.32));
-  const label = state === "synced" ? "Synchronisé" : "Synchronisation en attente";
+  const label = state === "synced" ? t("favicon_synced") : t("favicon_sync_pending");
   const color =
     state === "synced"
       ? "background: var(--color-success, oklch(0.55 0.13 150));"

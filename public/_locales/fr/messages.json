@@ -354,5 +354,25 @@
   "sync_section_connect": { "message": "Connecter un serveur" },
 
   "sync_status_connected": { "message": "Connecté" },
-  "sync_status_pending": { "message": "En attente" }
+  "sync_status_pending": { "message": "En attente" },
+
+  "vaults_section_title": { "message": "Coffres" },
+  "vaults_section_hint": {
+    "message": "Chaque coffre est un profil indépendant — son propre mot de passe maître, ses propres comptes, ses propres réglages. Changer de coffre verrouille la session en cours et demande le mot de passe maître du coffre choisi."
+  },
+  "vaults_active_label": { "message": "Coffre actif" },
+  "vaults_label": { "message": "Coffre" },
+  "vaults_created_label": {
+    "message": "Créé le $DATE$",
+    "placeholders": { "date": { "content": "$1" } }
+  },
+  "vaults_delete_aria": { "message": "Supprimer ce coffre" },
+  "vaults_delete_confirm_body": {
+    "message": "Supprimer ce coffre efface tous les comptes enregistrés et la session de sync attachée. Cette action est irréversible."
+  },
+  "vaults_add_cta": { "message": "Ajouter un coffre" },
+  "vaults_switch_aria": { "message": "Changer de coffre" },
+  "setup_cancel_existing": { "message": "Annuler — utiliser un coffre existant" },
+  "favicon_synced": { "message": "Synchronisé" },
+  "favicon_sync_pending": { "message": "Synchronisation en attente" }
 }

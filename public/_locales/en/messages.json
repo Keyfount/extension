@@ -354,5 +354,25 @@
   "sync_section_connect": { "message": "Connect a server" },
 
   "sync_status_connected": { "message": "Connected" },
-  "sync_status_pending": { "message": "Pending" }
+  "sync_status_pending": { "message": "Pending" },
+
+  "vaults_section_title": { "message": "Vaults" },
+  "vaults_section_hint": {
+    "message": "Each vault is an independent profile — its own master password, accounts and settings. Switching vaults locks the current session and asks for the chosen vault's master."
+  },
+  "vaults_active_label": { "message": "Active vault" },
+  "vaults_label": { "message": "Vault" },
+  "vaults_created_label": {
+    "message": "Created $DATE$",
+    "placeholders": { "date": { "content": "$1" } }
+  },
+  "vaults_delete_aria": { "message": "Delete this vault" },
+  "vaults_delete_confirm_body": {
+    "message": "Deleting this vault erases every saved account and the sync session attached to it. This action is irreversible."
+  },
+  "vaults_add_cta": { "message": "Add a vault" },
+  "vaults_switch_aria": { "message": "Switch vault" },
+  "setup_cancel_existing": { "message": "Cancel — use an existing vault" },
+  "favicon_synced": { "message": "Synced" },
+  "favicon_sync_pending": { "message": "Syncing" }
 }

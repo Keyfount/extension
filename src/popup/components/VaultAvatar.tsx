@@ -7,6 +7,7 @@
  * settings, sync, account detail.
  */
 import { motion } from "framer-motion";
+import { t } from "../../shared/i18n.js";
 import { SOFT_SPRING, TAP_SCALE } from "../../shared/motion.js";
 import { screen } from "../state.js";
 
@@ -25,8 +26,8 @@ export function VaultAvatar({ fingerprint }: Props) {
     <motion.button
       type="button"
       class="vault-avatar"
-      title={`Profil ${fingerprint} — changer`}
-      aria-label="Changer de profil"
+      title={`${t("vaults_label")} ${fingerprint}`}
+      aria-label={t("vaults_switch_aria")}
       whileTap={TAP_SCALE}
       initial={{ scale: 0.6, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}

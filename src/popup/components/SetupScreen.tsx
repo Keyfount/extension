@@ -223,7 +223,7 @@ export function SetupScreen() {
           onClick={() => void cancelToExisting()}
           disabled={busy.value}
         >
-          Annuler — utiliser un profil existant
+          {t("setup_cancel_existing")}
         </motion.button>
       ) : null}
     </motion.form>

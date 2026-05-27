@@ -95,7 +95,7 @@ export function VaultsScreen() {
       transition={SOFT_SPRING}
     >
       <Header
-        subtitle="Profils"
+        subtitle={t("vaults_section_title")}
         fingerprint={fingerprint.value}
         showVaultAvatar={false}
         actions={
@@ -113,11 +113,7 @@ export function VaultsScreen() {
         }
       />
 
-      <p class="text-xs text-(--color-ink-muted) leading-snug m-0">
-        Chaque profil est un coffre indépendant — son propre mot de passe maître, ses propres
-        comptes, ses propres réglages. Changer de profil verrouille la session en cours et demande
-        le mot de passe maître du profil choisi.
-      </p>
+      <p class="text-xs text-(--color-ink-muted) leading-snug m-0">{t("vaults_section_hint")}</p>
 
       {vaults === null ? (
         <div class="flex flex-col gap-2">
@@ -152,16 +148,16 @@ export function VaultsScreen() {
                   <span class="fingerprint fingerprint-sm">{v.fingerprint || "—"}</span>
                   <span class="flex flex-col flex-1 min-w-0 text-left">
                     <span class="text-sm font-medium text-(--color-ink)">
-                      {v.id === activeId ? "Profil actif" : "Profil"}
+                      {v.id === activeId ? t("vaults_active_label") : t("vaults_label")}
                     </span>
                     <span class="text-xs text-(--color-ink-muted) truncate">
-                      Créé le {new Date(v.createdAt).toLocaleDateString()}
+                      {t("vaults_created_label", new Date(v.createdAt).toLocaleDateString())}
                     </span>
                   </span>
                   {v.id === activeId ? (
                     <span
                       class="text-(--color-accent-600) dark:text-(--color-accent-400) shrink-0"
-                      aria-label="Profil actif"
+                      aria-label={t("vaults_active_label")}
                     >
                       <IconCheck size={16} />
                     </span>
@@ -170,7 +166,7 @@ export function VaultsScreen() {
                     type="button"
                     class="btn btn-quiet btn-icon"
                     whileTap={TAP_SCALE}
-                    aria-label="Supprimer ce profil"
+                    aria-label={t("vaults_delete_aria")}
                     onClick={(event: Event) => {
                       event.stopPropagation();
                       setConfirmingDeleteId(v.id);
@@ -183,10 +179,7 @@ export function VaultsScreen() {
 
                 {confirmingDeleteId === v.id ? (
                   <div class="callout callout-danger flex-col gap-3" role="alertdialog">
-                    <span>
-                      Supprimer ce profil efface tous les comptes enregistrés et la session de sync
-                      attachée. Cette action est irréversible.
-                    </span>
+                    <span>{t("vaults_delete_confirm_body")}</span>
                     <div class="flex gap-2 justify-end">
                       <motion.button
                         type="button"
@@ -215,7 +208,7 @@ export function VaultsScreen() {
       )}
 
       <motion.button type="button" class="btn" whileTap={TAP_SCALE} onClick={() => void addNew()}>
-        Ajouter un profil
+        {t("vaults_add_cta")}
       </motion.button>
 
       {errorMessage.value !== null ? (
