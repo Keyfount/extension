@@ -33,6 +33,7 @@ import { effectiveProfile, loadState, updateState } from "../storage.js";
 import { getActiveProfileId, requireActiveProfileId, syncLastAtKey } from "../profiles.js";
 import { deriveAesGcmKey } from "../crypto/index.js";
 import { readMaster } from "../session.js";
+import { drainPendingOps, enqueuePendingOp } from "./pending.js";
 import { bumpLamport, loadCursor, loadSession, saveCursor } from "./session-store.js";
 
 /**
@@ -205,7 +206,16 @@ async function pushOp(op: SyncOp, ctx: ApprovedContext): Promise<number | null> 
   return res.acceptedAt;
 }
 
-/** Push an account upsert/delete/rename op. Swallows every error. */
+/**
+ * Persist the op for one of upsert/delete/rename, then attempt to
+ * drain the queue against the server.
+ *
+ * Enqueueing always happens first so a mutation made under
+ * unfavourable conditions (locked vault, pending session, network
+ * down) survives in `chrome.storage.local` until the next drain
+ * opportunity. A failure to drain — including the trivial "no
+ * approved session yet" path — never aborts the local mutation.
+ */
 export async function syncAccountChange(args: {
   kind: "upsert" | "delete" | "rename";
   entry?: AccountEntry;
@@ -213,43 +223,82 @@ export async function syncAccountChange(args: {
   username: string;
   oldUsername?: string;
 }): Promise<void> {
-  try {
-    const ctx = await loadApprovedContext();
-    if (ctx === null) return;
+  let op: SyncOp;
+  if (args.kind === "upsert" && args.entry !== undefined) {
+    op = { t: "upsert_account", entry: args.entry };
+  } else if (args.kind === "delete") {
+    op = { t: "delete_account", domain: args.domain, username: args.username };
+  } else if (args.kind === "rename" && args.oldUsername !== undefined) {
+    op = {
+      t: "rename_account",
+      domain: args.domain,
+      oldUsername: args.oldUsername,
+      newUsername: args.username,
+    };
+  } else {
+    return;
+  }
 
-    let op: SyncOp;
-    if (args.kind === "upsert" && args.entry !== undefined) {
-      op = { t: "upsert_account", entry: args.entry };
-    } else if (args.kind === "delete") {
-      op = { t: "delete_account", domain: args.domain, username: args.username };
-    } else if (args.kind === "rename" && args.oldUsername !== undefined) {
-      op = {
-        t: "rename_account",
-        domain: args.domain,
-        oldUsername: args.oldUsername,
-        newUsername: args.username,
-      };
-    } else {
+  try {
+    await enqueuePendingOp(op);
+  } catch {
+    // Vault was locked between the local mutation and this call.
+    // Unreachable in practice — the local mutation itself needed the
+    // master to encrypt/decrypt the accounts blob. Drop silently.
+    return;
+  }
+
+  try {
+    await drainQueueWithStamping();
+  } catch (err) {
+    // Best-effort drain. The op stays in the queue and the next push
+    // path will retry.
+    void err;
+  }
+}
+
+/**
+ * Drain `chrome.storage.local`'s pending op queue against the server
+ * and stamp the per-account `lastSyncedAt` map for each successfully
+ * pushed op. Returns silently when no approved context is available.
+ */
+async function drainQueueWithStamping(): Promise<void> {
+  const ctx = await loadApprovedContext();
+  if (ctx === null) return;
+  await drainPendingOps(async (op) => {
+    const acceptedAt = await pushOp(op, ctx);
+    if (acceptedAt === null) {
+      throw new Error("push not acknowledged");
+    }
+    await stampForOp(op, acceptedAt, ctx);
+  });
+}
+
+/**
+ * Refresh `sync.lastSyncAt.v1` for the account(s) touched by an op
+ * just acknowledged by the server. Mirrors the inline stamping the
+ * old `syncAccountChange` body did, so the per-account "Synced N min
+ * ago" UI stays accurate regardless of whether an op was sent live
+ * or replayed out of the queue.
+ */
+async function stampForOp(op: SyncOp, acceptedAt: number, ctx: ApprovedContext): Promise<void> {
+  switch (op.t) {
+    case "upsert_account":
+      await recordSyncedAt(op.entry.domain, op.entry.username, acceptedAt, "push");
+      return;
+    case "delete_account":
+      // No per-account stamp for a delete — the row is gone locally.
+      return;
+    case "rename_account": {
+      const id = await requireActiveProfileId();
+      const map = await loadLastSyncMap();
+      delete map[key(op.domain, op.oldUsername)];
+      map[key(op.domain, op.newUsername)] = { ts: acceptedAt, dir: "push" };
+      await writeLastSyncMap(id, map, ctx.master);
       return;
     }
-
-    const acceptedAt = await pushOp(op, ctx);
-    if (acceptedAt !== null) {
-      await recordSyncedAt(args.domain, args.username, acceptedAt, "push");
-      if (args.kind === "rename" && args.oldUsername !== undefined) {
-        // Migrate the old key entry to the new one.
-        const id = await requireActiveProfileId();
-        const map = await loadLastSyncMap();
-        delete map[key(args.domain, args.oldUsername)];
-        map[key(args.domain, args.username)] = { ts: acceptedAt, dir: "push" };
-        await writeLastSyncMap(id, map, ctx.master);
-      }
-    }
-  } catch (err) {
-    // Best-effort: never block local mutations. We swallow with a noop
-    // so eslint's no-console doesn't trigger; the SW already logs
-    // network errors via Fastify-style request tracing on its side.
-    void err;
+    default:
+      return;
   }
 }
 
@@ -265,6 +314,14 @@ export async function syncAccountChange(args: {
 export async function pushAllAccounts(): Promise<{ pushed: number; failed: number } | null> {
   const ctx = await loadApprovedContext();
   if (ctx === null) return null;
+
+  // Drain queued ops first so any pending deletes leave the device
+  // before this re-emits every locally-known account as upsert.
+  try {
+    await drainQueueWithStamping();
+  } catch (err) {
+    void err;
+  }
 
   const state = await loadState();
   const entries = await listAccounts(ctx.master, undefined, fallbackFor(state));
@@ -311,6 +368,14 @@ export interface PullResult {
  */
 export async function pullEvents(): Promise<PullResult | null> {
   try {
+    // Drain queued local ops first — prevents server-side reordering
+    // of a queued delete behind a freshly-pulled remote upsert.
+    try {
+      await drainQueueWithStamping();
+    } catch (err) {
+      void err;
+    }
+
     const ctx = await loadApprovedContext();
     if (ctx === null) return null;
 
