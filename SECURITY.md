@@ -33,6 +33,10 @@ Keyfount is a **deterministic** password manager. It does not store generated pa
 
 If you find a deviation from any of these, please report it.
 
+### Iframe carve-out
+
+The content script derives the registrable domain from `window.location.href`. Inside a subframe that URL belongs to the iframe — not to the page the user is looking at — so a hostile top page that embeds `<iframe src="bank.example/login">` could otherwise coax Keyfount into deriving a `bank.example` password into DOM the attacker controls, then exfiltrate it via `postMessage`. To shut this down we **never run the content script inside subframes**: the manifest leaves `allFrames` at its default `false`, and the entrypoint guards on `window === window.top` as defence in depth ([src/content/iframe-guard.ts](src/content/iframe-guard.ts)). The cost is that legitimate same-origin iframed login forms (rare in practice) no longer receive a badge; users can still open the popup and fill manually.
+
 ## Storage threat boundary
 
 The extension persists state in `chrome.storage.local`. Chrome encrypts this area on disk via OSCrypt (platform keychain), but any process running as the user can read it back through the storage API, and forensic tools that target the Chrome profile directory routinely dump it. We therefore treat `chrome.storage.local` as a **soft boundary** and layer our own AES-GCM (key derived from the master via PBKDF2-SHA256, 200,000 iterations) on top of any field that names a domain or carries generation parameters.

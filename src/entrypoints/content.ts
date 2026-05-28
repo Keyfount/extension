@@ -18,16 +18,19 @@ import {
   findUsernameFieldFor,
   isChangePasswordPage,
 } from "../content/detect.js";
+import { isTopFrame } from "../content/iframe-guard.js";
 import { send } from "../content/messaging.js";
 import { registrableDomain } from "../shared/domain.js";
 
 export default defineContentScript({
   matches: ["<all_urls>"],
-  allFrames: true,
+  // allFrames intentionally omitted: subframes would derive passwords from the
+  // iframe's URL, which an attacker controls. See iframe-guard.ts.
   runAt: "document_idle",
 
   main() {
-    if (window === window.top && window.location.protocol === "chrome:") return;
+    if (!isTopFrame(window)) return;
+    if (window.location.protocol === "chrome:") return;
 
     const badges = new WeakMap<HTMLInputElement, BadgeController>();
 
