@@ -38,14 +38,18 @@ export const test = base.extend<ExtensionFixture>({
         `--disable-extensions-except=${EXTENSION_PATH}`,
         `--load-extension=${EXTENSION_PATH}`,
         "--no-first-run",
-        // Pin the UI to French so specs can rely on French message strings.
-        // The spec selectors are all French (the AccountDetailScreen strings
-        // are even hardcoded French — see Keyfount/extension#55), so French is
-        // the only locale where the whole suite is coherent. On Linux CI this
-        // flag is honoured; on a French macOS host the OS locale already wins.
         "--lang=fr-FR",
       ],
       locale: "fr-FR",
+      // Pin the UI to French so specs can rely on French message strings.
+      // Every spec selector is French and some AccountDetailScreen strings are
+      // hardcoded French (Keyfount/extension#55), so French is the only locale
+      // where the whole suite is coherent. A Chrome extension's
+      // chrome.i18n.getUILanguage() follows Chromium's UI locale, which on
+      // Linux is selected by the LANGUAGE env var — `--lang` alone does not
+      // change it (that was why CI rendered English and timed out). On a French
+      // macOS host the OS locale already provides French.
+      env: { ...process.env, LANGUAGE: "fr" },
     });
     await use(context);
     await context.close();
