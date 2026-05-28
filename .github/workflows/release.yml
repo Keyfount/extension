@@ -1,0 +1,109 @@
+name: Release
+
+# A release is cut when a pull request is merged into `main` (normally the
+# develop -> main PR). The PR must carry exactly one `release:` label, which
+# decides the version bump; the PR body becomes the GitHub Release notes.
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Resolve version
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Resolve version bump from the PR label
+        id: bump
+        env:
+          LABELS: ${{ toJson(github.event.pull_request.labels.*.name) }}
+        run: |
+          level=$(printf '%s' "$LABELS" | jq -r '.[]' | grep -E '^release:(major|minor|patch)$' | sed 's/release://' || true)
+          count=$(printf '%s' "$level" | grep -c . || true)
+          if [ "$count" -ne 1 ]; then
+            echo "::error::Exactly one release label is required on the PR (release:major | release:minor | release:patch). Found: [${level//$'\n'/, }]"
+            exit 1
+          fi
+          echo "level=$level" >> "$GITHUB_OUTPUT"
+          echo "Bump level: $level"
+
+      - name: Compute next version
+        id: version
+        run: |
+          latest=$(git tag --list 'v*.*.*' --sort=-v:refname | head -n1)
+          latest=${latest:-v0.0.0}
+          ver=${latest#v}
+          major=$(echo "$ver" | cut -d. -f1)
+          minor=$(echo "$ver" | cut -d. -f2)
+          patch=$(echo "$ver" | cut -d. -f3)
+          case "${{ steps.bump.outputs.level }}" in
+            major) major=$((major + 1)); minor=0; patch=0 ;;
+            minor) minor=$((minor + 1)); patch=0 ;;
+            patch) patch=$((patch + 1)) ;;
+          esac
+          new="${major}.${minor}.${patch}"
+          echo "version=${new}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${new}" >> "$GITHUB_OUTPUT"
+          echo "Releasing ${latest} -> v${new}"
+
+  release:
+    name: Build & publish (Chrome + Firefox)
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Stamp release version
+        run: npm version "${{ needs.prepare.outputs.version }}" --no-git-tag-version --allow-same-version
+
+      - name: Build & zip (Chrome)
+        run: npm run zip
+
+      - name: Build & zip (Firefox)
+        run: npm run zip:firefox
+
+      - name: Prepare release notes
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+        run: printf '%s' "$BODY" > release-notes.md
+
+      - name: Publish GitHub Release
+        run: |
+          gh release create "${{ needs.prepare.outputs.tag }}" \
+            --target main \
+            --title "Keyfount Extension ${{ needs.prepare.outputs.tag }}" \
+            --notes-file release-notes.md \
+            --latest \
+            ./.output/*.zip
