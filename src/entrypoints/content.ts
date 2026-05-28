@@ -33,12 +33,22 @@ export default defineContentScript({
     if (window.location.protocol === "chrome:") return;
 
     const badges = new WeakMap<HTMLInputElement, BadgeController>();
+    // A page can carry several detected fields (e.g. email + password), each
+    // with its own badge. Only one panel should be open at a time: opening a
+    // second while the first is still up leaves two floating "Fill" panels
+    // (reachable by clicking — not tabbing — between fields, since the
+    // click-outside guard treats the shared password field as "inside").
+    const controllers = new Set<BadgeController>();
 
     const openHandler = (event: FocusEvent) => {
       const target = event.target;
       if (!(target instanceof HTMLInputElement)) return;
       const controller = badges.get(target);
-      if (controller !== undefined) controller.open();
+      if (controller === undefined) return;
+      for (const other of controllers) {
+        if (other !== controller) other.close();
+      }
+      controller.open();
     };
 
     const keyHandler = (event: KeyboardEvent) => {
@@ -78,6 +88,7 @@ export default defineContentScript({
       if (badges.has(field)) return;
       const controller = attachBadge(options);
       badges.set(field, controller);
+      controllers.add(controller);
       field.addEventListener("focus", openHandler);
       field.addEventListener("keydown", keyHandler);
       if (options.anchor === "username") {
