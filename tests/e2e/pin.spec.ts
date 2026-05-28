@@ -46,7 +46,11 @@ async function enablePin(page: Page): Promise<void> {
  * the toolbar popup is ephemeral — and the fresh `status()` read is what
  * surfaces the PIN tab on the unlock screen.
  */
-async function lockAndReopen(page: Page, context: BrowserContext, extensionId: string): Promise<Page> {
+async function lockAndReopen(
+  page: Page,
+  context: BrowserContext,
+  extensionId: string,
+): Promise<Page> {
   await page.locator('header button[aria-label="Verrouiller"]').click();
   await page.close();
   const next = await context.newPage();

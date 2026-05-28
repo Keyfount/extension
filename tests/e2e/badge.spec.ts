@@ -83,7 +83,10 @@ test.describe("content-script badge — attach & open/close", () => {
     // opens, so never two at once (the bug the user reported).
     await tab.locator('input[type="email"]').press("Tab");
     await expect
-      .poll(async () => (await tab.evaluate(() => (document.activeElement as HTMLInputElement)?.type)) ?? "")
+      .poll(
+        async () =>
+          (await tab.evaluate(() => (document.activeElement as HTMLInputElement)?.type)) ?? "",
+      )
       .toBe("password");
     await expect(openBadges(tab)).toHaveCount(1);
   });

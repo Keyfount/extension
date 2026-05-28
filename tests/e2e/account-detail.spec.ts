@@ -36,7 +36,10 @@ async function listAccounts(page: Page): Promise<Array<{ domain: string; usernam
 }
 
 test.describe("popup account detail", () => {
-  test("opens a saved account and renames it from the popup UI", async ({ context, extensionId }) => {
+  test("opens a saved account and renames it from the popup UI", async ({
+    context,
+    extensionId,
+  }) => {
     const page = await context.newPage();
     await page.goto(`chrome-extension://${extensionId}/popup.html`);
     await setupWithHistory(page);
@@ -55,7 +58,9 @@ test.describe("popup account detail", () => {
     await page.locator("button", { hasText: "Enregistrer" }).click();
 
     await expect
-      .poll(async () => (await listAccounts(page)).some((a) => a.username === "alice-2@example.com"))
+      .poll(async () =>
+        (await listAccounts(page)).some((a) => a.username === "alice-2@example.com"),
+      )
       .toBe(true);
   });
 

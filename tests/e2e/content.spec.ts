@@ -47,7 +47,9 @@ test("no badge is attached inside a cross-origin iframe (ext#51)", async ({
 
   // The cross-origin iframe must not receive a badge — otherwise an attacker
   // page could exfiltrate the derived password via postMessage.
-  const childFrame = tab.frame({ url: (u) => u.toString().startsWith(framedFixtureServer.childUrl) });
+  const childFrame = tab.frame({
+    url: (u) => u.toString().startsWith(framedFixtureServer.childUrl),
+  });
   if (childFrame === null) throw new Error("iframe did not load");
   await childFrame.locator('input[type="password"]').waitFor({ state: "attached" });
   // Give the content script a moment to be (incorrectly) injected if the
