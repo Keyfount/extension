@@ -38,10 +38,14 @@ export const test = base.extend<ExtensionFixture>({
         `--disable-extensions-except=${EXTENSION_PATH}`,
         `--load-extension=${EXTENSION_PATH}`,
         "--no-first-run",
-        // Force English UI so tests can rely on English message strings.
-        "--lang=en-US",
+        // Pin the UI to French so specs can rely on French message strings.
+        // The spec selectors are all French (the AccountDetailScreen strings
+        // are even hardcoded French — see Keyfount/extension#55), so French is
+        // the only locale where the whole suite is coherent. On Linux CI this
+        // flag is honoured; on a French macOS host the OS locale already wins.
+        "--lang=fr-FR",
       ],
-      locale: "en-US",
+      locale: "fr-FR",
     });
     await use(context);
     await context.close();
