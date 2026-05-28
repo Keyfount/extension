@@ -127,8 +127,11 @@ jobs:
       - name: Install Playwright browser
         run: npx playwright install chromium --with-deps
 
-      - name: Build Chrome extension
-        run: npm run build
+      # Build with the e2e flag (open shadow root) so the badge specs can
+      # drive the panel; production keeps the closed shadow. Behaviour is
+      # identical — only DOM isolation differs.
+      - name: Build Chrome extension (e2e)
+        run: npm run build:e2e
 
       - name: Run Playwright tests
         run: npm run test:e2e
