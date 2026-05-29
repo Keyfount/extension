@@ -6,7 +6,6 @@
  *     the page-side content script to focus the password input and open
  *     its badge panel.
  */
-import { registrableDomain } from "../shared/domain.js";
 
 const OPEN_VAULT_ID = "keyfount:open-vault";
 const FILL_FIELD_ID = "keyfount:fill-field";
@@ -38,11 +37,10 @@ export function registerContextMenus(): void {
       return;
     }
     if (info.menuItemId === FILL_FIELD_ID && tab?.id !== undefined) {
-      const domain = tab.url ? registrableDomain(tab.url) : null;
       chrome.tabs
         .sendMessage(tab.id, {
           kind: "keyfount:fill-here",
-          domain,
+          url: tab.url ?? null,
         })
         .catch(() => {
           /* content script not loaded on this page */

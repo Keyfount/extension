@@ -19,7 +19,7 @@ import {
   historyEnabled,
   savedAccounts,
 } from "./state.js";
-import { registrableDomain } from "../shared/domain.js";
+import { matchAccounts, registrableDomain } from "../shared/domain.js";
 
 export async function loadVaultData(): Promise<void> {
   try {
@@ -44,7 +44,9 @@ export async function loadVaultData(): Promise<void> {
     try {
       const res = await send({ kind: "listAccounts" });
       allAccounts.value = res.entries;
-      savedAccounts.value = domain === null ? [] : res.entries.filter((e) => e.domain === domain);
+      // Offer accounts whose match set covers the current host (registrable
+      // → all subdomains, full-host → exact, plus linked domains).
+      savedAccounts.value = tab?.url ? matchAccounts(tab.url, res.entries) : [];
     } catch {
       allAccounts.value = [];
       savedAccounts.value = [];
