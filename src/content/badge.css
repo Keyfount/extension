@@ -353,6 +353,10 @@
   border-color: var(--color-line-strong);
 }
 
+.badge__new-account {
+  width: 100%;
+}
+
 .badge__scope {
   display: flex;
   flex-direction: column;

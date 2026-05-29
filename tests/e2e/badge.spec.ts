@@ -166,3 +166,71 @@ test.describe("content-script badge — detection, fill, multi-page", () => {
     await expect(tab.getByRole("button", { name: "Remplir" })).toBeVisible({ timeout: 15_000 });
   });
 });
+
+test.describe("content-script badge — new account on a site with saved accounts", () => {
+  async function setupHistoryAndAccount(
+    context: BrowserContext,
+    extensionId: string,
+    accountDomain: string,
+    accountUser: string,
+  ): Promise<void> {
+    const popup = await context.newPage();
+    await popup.goto(`chrome-extension://${extensionId}/popup.html`);
+    const inputs = popup.locator('input[type="password"]');
+    await inputs.nth(0).fill(MASTER);
+    await inputs.nth(1).fill(MASTER);
+    await popup.locator('button[type="submit"]').click();
+    await popup.locator("button.btn:not(.btn-ghost)").click(); // enable history
+    await expect(popup.locator("header button[aria-label]").first()).toBeVisible({
+      timeout: 30_000,
+    });
+    await popup.evaluate(
+      async ([d, u]) => {
+        const P = {
+          mode: "random",
+          length: 16,
+          lower: true,
+          upper: true,
+          digits: true,
+          symbols: true,
+          counter: 1,
+        };
+        await chrome.runtime.sendMessage({
+          kind: "recordAccount",
+          domain: d,
+          username: u,
+          profile: P,
+        });
+      },
+      [accountDomain, accountUser] as const,
+    );
+    await popup.close();
+  }
+
+  test("offers a 'new account' entry instead of auto-deriving the saved one", async ({
+    context,
+    extensionId,
+  }) => {
+    await setupHistoryAndAccount(context, extensionId, "example.org", "existing@example.com");
+    await context.route("https://app.example.org/**", (route) =>
+      route.fulfill({ contentType: "text/html; charset=utf-8", body: LOGIN_HTML }),
+    );
+    const tab = await context.newPage();
+    await tab.goto("https://app.example.org/");
+    await requireOpenShadow(tab);
+    await tab.locator('input[type="password"]').focus();
+
+    // Chooser: the saved account is listed and a "Nouveau compte" entry is
+    // offered — no password is auto-derived (no Fill button yet).
+    await expect(tab.getByRole("button", { name: "Nouveau compte" })).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(tab.getByRole("button", { name: "Remplir" })).toHaveCount(0);
+
+    // New account → type a fresh email → reach the generate (ready) state.
+    await tab.getByRole("button", { name: "Nouveau compte" }).click();
+    await tab.locator(".badge__panel input").first().fill("brand-new@example.com");
+    await tab.getByRole("button", { name: "Générer" }).click();
+    await expect(tab.getByRole("button", { name: "Remplir" })).toBeVisible({ timeout: 15_000 });
+  });
+});
