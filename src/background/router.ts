@@ -548,7 +548,14 @@ async function handleRecordAccount(
   const trimmed = username.trim();
   if (trimmed.length === 0) return { ok: false, error: "username required" };
   if (domain.length === 0) return { ok: false, error: "domain required" };
-  const entry = await recordAccount(master, domain, trimmed, profile, fallbackFor(state), linkedDomains);
+  const entry = await recordAccount(
+    master,
+    domain,
+    trimmed,
+    profile,
+    fallbackFor(state),
+    linkedDomains,
+  );
   void syncAccountChange({ kind: "upsert", entry, domain, username: trimmed });
   return { ok: true, entry };
 }

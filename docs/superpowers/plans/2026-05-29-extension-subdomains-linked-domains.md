@@ -14,27 +14,28 @@
 
 ## File Structure
 
-| File | Responsibility | Change |
-|---|---|---|
-| `src/shared/domain.ts` | Domain parsing + match rule | **Add** `fullHost`, `domainMatches`, `matchAccounts` (+ internal `matchRank`) |
-| `src/shared/types.ts` | Shared types | **Add** `linkedDomains?: string[]` to `AccountEntry` |
-| `src/shared/messages.ts` | Popup⇄background protocol | **Add** `url?` to `listAccounts`; **add** `linkAccountDomain`/`unlinkAccountDomain` requests |
-| `src/background/accounts.ts` | Encrypted account store | `recordAccount` carries `linkedDomains`; **add** `linkDomain`/`unlinkDomain`; `RawEntry` carries the field |
-| `src/background/router.ts` | Message dispatch | `handleListAccounts` matches by URL; handlers for link/unlink |
-| `src/background/sync/engine.ts` | Sync apply | Pass `linkedDomains` through `recordAccount` on apply (2 sites) |
-| `src/popup/vault.ts` | Popup bootstrap | `savedAccounts` via `matchAccounts(tab.url, …)` |
-| `src/content/Badge.tsx` | In-page autofill | List by URL; derive a matched account from its own `domain`; save-granularity toggle |
-| `src/entrypoints/content.ts` | Content entry | Rotate-banner list by URL |
-| `src/background/context-menus.ts` | Right-click fill | Pass full URL through to the page |
-| `src/popup/components/AccountDetailScreen.tsx` | Account editor | Linked-domains add/remove UI |
-| `tests/match-accounts.test.ts` | Unit (new) | Table-driven match rule |
-| `tests/e2e/linked-domains.spec.ts` | e2e (new) | Subdomain + linked offering; narrow not offered on root |
+| File                                           | Responsibility              | Change                                                                                                     |
+| ---------------------------------------------- | --------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `src/shared/domain.ts`                         | Domain parsing + match rule | **Add** `fullHost`, `domainMatches`, `matchAccounts` (+ internal `matchRank`)                              |
+| `src/shared/types.ts`                          | Shared types                | **Add** `linkedDomains?: string[]` to `AccountEntry`                                                       |
+| `src/shared/messages.ts`                       | Popup⇄background protocol   | **Add** `url?` to `listAccounts`; **add** `linkAccountDomain`/`unlinkAccountDomain` requests               |
+| `src/background/accounts.ts`                   | Encrypted account store     | `recordAccount` carries `linkedDomains`; **add** `linkDomain`/`unlinkDomain`; `RawEntry` carries the field |
+| `src/background/router.ts`                     | Message dispatch            | `handleListAccounts` matches by URL; handlers for link/unlink                                              |
+| `src/background/sync/engine.ts`                | Sync apply                  | Pass `linkedDomains` through `recordAccount` on apply (2 sites)                                            |
+| `src/popup/vault.ts`                           | Popup bootstrap             | `savedAccounts` via `matchAccounts(tab.url, …)`                                                            |
+| `src/content/Badge.tsx`                        | In-page autofill            | List by URL; derive a matched account from its own `domain`; save-granularity toggle                       |
+| `src/entrypoints/content.ts`                   | Content entry               | Rotate-banner list by URL                                                                                  |
+| `src/background/context-menus.ts`              | Right-click fill            | Pass full URL through to the page                                                                          |
+| `src/popup/components/AccountDetailScreen.tsx` | Account editor              | Linked-domains add/remove UI                                                                               |
+| `tests/match-accounts.test.ts`                 | Unit (new)                  | Table-driven match rule                                                                                    |
+| `tests/e2e/linked-domains.spec.ts`             | e2e (new)                   | Subdomain + linked offering; narrow not offered on root                                                    |
 
 ---
 
 ## Task 1: Match rule in `shared/domain.ts`
 
 **Files:**
+
 - Modify: `src/shared/domain.ts`
 - Test: `tests/match-accounts.test.ts` (create)
 
@@ -53,7 +54,9 @@ interface Row {
   lastUsedAt: number;
 }
 const acc = (domain: string, lastUsedAt = 0, linkedDomains?: string[]): Row =>
-  linkedDomains ? { domain, username: "u", linkedDomains, lastUsedAt } : { domain, username: "u", lastUsedAt };
+  linkedDomains
+    ? { domain, username: "u", linkedDomains, lastUsedAt }
+    : { domain, username: "u", lastUsedAt };
 
 describe("fullHost", () => {
   it("returns the lowercased hostname for http(s) URLs", () => {
@@ -203,6 +206,7 @@ git commit -m "feat(domain): add subdomain + linked-domain match rule"
 ## Task 2: `linkedDomains` on `AccountEntry`
 
 **Files:**
+
 - Modify: `src/shared/types.ts:76-89` (the `AccountEntry` interface)
 
 - [ ] **Step 1: Add the field**
@@ -240,6 +244,7 @@ git commit -m "feat(types): add match-only linkedDomains to AccountEntry"
 ## Task 3: Carry `linkedDomains` through the account store
 
 **Files:**
+
 - Modify: `src/background/accounts.ts`
 - Test: `tests/accounts-linked.test.ts` (create) — only if an account-store test harness exists; otherwise rely on Task 8 e2e. (Check `tests/` for an existing `accounts` test to mirror the chrome.storage mock before writing.)
 
@@ -353,14 +358,14 @@ interface RawEntry {
 The legacy-backfill branch (the `profile === undefined` map at `:202`) should also forward it:
 
 ```ts
-    return {
-      domain: e.domain,
-      username: e.username,
-      profile,
-      ...(e.linkedDomains !== undefined ? { linkedDomains: e.linkedDomains } : {}),
-      createdAt: e.createdAt,
-      lastUsedAt: e.lastUsedAt,
-    };
+return {
+  domain: e.domain,
+  username: e.username,
+  profile,
+  ...(e.linkedDomains !== undefined ? { linkedDomains: e.linkedDomains } : {}),
+  createdAt: e.createdAt,
+  lastUsedAt: e.lastUsedAt,
+};
 ```
 
 - [ ] **Step 4: Typecheck**
@@ -380,6 +385,7 @@ git commit -m "feat(accounts): persist linkedDomains, add link/unlink helpers"
 ## Task 4: Background matching protocol (`messages.ts` + `router.ts`)
 
 **Files:**
+
 - Modify: `src/shared/messages.ts:28` and response map
 - Modify: `src/background/router.ts` (handler `handleListAccounts`, dispatch at `:165`; link/unlink dispatch)
 
@@ -480,6 +486,7 @@ git commit -m "feat(router): match accounts by URL in background; link/unlink op
 ## Task 5: Carry `linkedDomains` through sync apply
 
 **Files:**
+
 - Modify: `src/background/sync/engine.ts:550` and `:572`
 
 **Why:** the `upsert_account` op carries the whole `entry` (so `linkedDomains` is already on the wire and survives `normaliseDecodedState`), but both apply paths reconstruct the row via `recordAccount(master, domain, username, profile, fallback)` — dropping `linkedDomains`. Pass it through.
@@ -487,27 +494,27 @@ git commit -m "feat(router): match accounts by URL in background; link/unlink op
 - [ ] **Step 1: Snapshot apply (`applyStateAuthoritatively`, ~`:550`)**
 
 ```ts
-    await recordAccount(
-      ctx.master,
-      entry.domain,
-      entry.username,
-      entry.profile,
-      fallback,
-      entry.linkedDomains,
-    );
+await recordAccount(
+  ctx.master,
+  entry.domain,
+  entry.username,
+  entry.profile,
+  fallback,
+  entry.linkedDomains,
+);
 ```
 
 - [ ] **Step 2: Event apply (`applyOp` upsert, ~`:572`)**
 
 ```ts
-      await recordAccount(
-        ctx.master,
-        op.entry.domain,
-        op.entry.username,
-        op.entry.profile,
-        fallbackFor(state),
-        op.entry.linkedDomains,
-      );
+await recordAccount(
+  ctx.master,
+  op.entry.domain,
+  op.entry.username,
+  op.entry.profile,
+  fallbackFor(state),
+  op.entry.linkedDomains,
+);
 ```
 
 - [ ] **Step 3: Typecheck + tests**
@@ -527,6 +534,7 @@ git commit -m "fix(sync): preserve linkedDomains when applying account ops"
 ## Task 6: Replace registrable-only call sites
 
 **Files:**
+
 - Modify: `src/popup/vault.ts:47`
 - Modify: `src/entrypoints/content.ts:134`
 - Modify: `src/background/context-menus.ts:41`
@@ -537,8 +545,7 @@ git commit -m "fix(sync): preserve linkedDomains when applying account ops"
 `src/popup/vault.ts` — import `matchAccounts` (already imports `registrableDomain` at `:22`) and replace the filter at `:47`:
 
 ```ts
-      savedAccounts.value =
-        tab?.url != null ? matchAccounts(tab.url, res.entries) : [];
+savedAccounts.value = tab?.url != null ? matchAccounts(tab.url, res.entries) : [];
 ```
 
 (Keep `allAccounts.value = res.entries` and the `activeDomain` line unchanged — `activeDomain` stays the registrable domain for the generate panel.)
@@ -548,13 +555,12 @@ git commit -m "fix(sync): preserve linkedDomains when applying account ops"
 `src/entrypoints/content.ts:134` — change the rotate lookup to ask the background to match by URL:
 
 ```ts
-        send({ kind: "listAccounts", url: window.location.href })
-          .then((res) => {
-            const entries = res.entries;
-            if (entries.length === 0) return;
-            const best = [...entries].sort((a, b) => b.lastUsedAt - a.lastUsedAt)[0]!;
-            void showRotateBanner({ entry: best });
-          })
+send({ kind: "listAccounts", url: window.location.href }).then((res) => {
+  const entries = res.entries;
+  if (entries.length === 0) return;
+  const best = [...entries].sort((a, b) => b.lastUsedAt - a.lastUsedAt)[0]!;
+  void showRotateBanner({ entry: best });
+});
 ```
 
 - [ ] **Step 3: Context menu passes the full URL**
@@ -562,13 +568,13 @@ git commit -m "fix(sync): preserve linkedDomains when applying account ops"
 `src/background/context-menus.ts:41` — forward the page URL (the page side will match), instead of the registrable domain:
 
 ```ts
-    if (info.menuItemId === FILL_FIELD_ID && tab?.id !== undefined) {
-      chrome.tabs
-        .sendMessage(tab.id, { kind: "keyfount:fill-here", url: tab.url ?? null })
-        .catch(() => {
-          /* content script not loaded on this page */
-        });
-    }
+if (info.menuItemId === FILL_FIELD_ID && tab?.id !== undefined) {
+  chrome.tabs
+    .sendMessage(tab.id, { kind: "keyfount:fill-here", url: tab.url ?? null })
+    .catch(() => {
+      /* content script not loaded on this page */
+    });
+}
 ```
 
 (`registrableDomain` import becomes unused here — remove it.)
@@ -590,6 +596,7 @@ git commit -m "feat: match saved accounts by URL at popup/content call sites"
 ## Task 7: Badge — match by URL, derive from the account's own salt, save-granularity toggle
 
 **Files:**
+
 - Modify: `src/content/Badge.tsx` (saved-list load ~`:476-489`; the generate call ~`:528-539`; the save banner/record path ~`:100-160`, `:560-577`)
 
 > Read the exact current markup for each region immediately before editing it.
@@ -599,14 +606,14 @@ git commit -m "feat: match saved accounts by URL at popup/content call sites"
 Replace the `registrableDomain` + `listAccounts; domain` path (~`:476-489`) so the page asks the background to match by URL and keeps the page's registrable domain only for new-account derivation:
 
 ```ts
-        const domain = registrableDomain(window.location.href);
-        if (domain === null) {
-          setStatus({ kind: "no-domain" });
-          return;
-        }
-        const list = await send({ kind: "listAccounts", url: window.location.href });
-        savedForDomain = list.entries;
-        setSaved(list.entries);
+const domain = registrableDomain(window.location.href);
+if (domain === null) {
+  setStatus({ kind: "no-domain" });
+  return;
+}
+const list = await send({ kind: "listAccounts", url: window.location.href });
+savedForDomain = list.entries;
+setSaved(list.entries);
 ```
 
 - [ ] **Step 2: Derive a saved account from its own canonical domain**
@@ -667,6 +674,7 @@ git commit -m "feat(badge): URL matching, per-account salt, save-granularity tog
 ## Task 8: Account editor — linked domains
 
 **Files:**
+
 - Modify: `src/popup/components/AccountDetailScreen.tsx` (render body ~`:360-560`)
 
 > Read the current render body before editing.
@@ -744,6 +752,7 @@ git commit -m "feat(popup): linked-domains editor on the account detail screen"
 ## Task 9: Playwright e2e
 
 **Files:**
+
 - Create: `tests/e2e/linked-domains.spec.ts`
 
 > Read an existing spec under `tests/e2e/` first to reuse the extension-loading fixture, unlock helper, and how a page URL/host is faked (likely a local fixture server or `page.route`).
@@ -751,6 +760,7 @@ git commit -m "feat(popup): linked-domains editor on the account detail screen"
 - [ ] **Step 1: Write the e2e scenarios**
 
 Cover, using the existing harness conventions:
+
 1. A registrable account (`example.com`) is **offered** on a subdomain (`app.example.com`).
 2. A narrow full-host account (`w.example.com`) is **offered** on `w.example.com` but **not** on the registrable root (`example.com`).
 3. Linking `z.example.com` to the `w.example.com` account makes it **offered** on `z.example.com`, and the filled password equals the one derived for `w.example.com` (same salt).

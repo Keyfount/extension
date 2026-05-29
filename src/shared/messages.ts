@@ -26,7 +26,13 @@ export type Request =
   | { kind: "getState" }
   | { kind: "wipe" }
   | { kind: "listAccounts"; domain?: string; url?: string }
-  | { kind: "recordAccount"; domain: string; username: string; profile: Profile; linkedDomains?: string[] }
+  | {
+      kind: "recordAccount";
+      domain: string;
+      username: string;
+      profile: Profile;
+      linkedDomains?: string[];
+    }
   | { kind: "updateAccountProfile"; domain: string; username: string; profile: Profile }
   | { kind: "renameAccount"; domain: string; oldUsername: string; newUsername: string }
   | { kind: "deleteAccount"; domain: string; username: string }

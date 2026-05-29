@@ -39,7 +39,13 @@ describe("normaliseDecodedState — linkedDomains", () => {
       historyEnabled: true,
       faviconFallbackEnabled: true,
       accounts: [
-        { domain: "a.com", username: "u", profile: DEFAULT_RANDOM_PROFILE, createdAt: 1, lastUsedAt: 2 },
+        {
+          domain: "a.com",
+          username: "u",
+          profile: DEFAULT_RANDOM_PROFILE,
+          createdAt: 1,
+          lastUsedAt: 2,
+        },
       ],
       tombstones: [],
     });

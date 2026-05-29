@@ -1,3 +1,4 @@
+import type { BrowserContext } from "@playwright/test";
 import { expect, test } from "./fixtures.js";
 
 /**
@@ -17,10 +18,7 @@ const PROFILE = {
   counter: 1,
 } as const;
 
-async function setupWithHistory(
-  context: import("@playwright/test").BrowserContext,
-  extensionId: string,
-): Promise<void> {
+async function setupWithHistory(context: BrowserContext, extensionId: string): Promise<void> {
   const setup = await context.newPage();
   await setup.goto(`chrome-extension://${extensionId}/popup.html`);
   const masterInputs = setup.locator('input[type="password"]');
@@ -90,9 +88,7 @@ test("offers accounts across subdomains and linked domains", async ({ context, e
 
   // On the unrelated linked site only the linked account matches (the broad
   // example.org account does not cross the registrable boundary).
-  expect(await usernamesFor("https://app.other-site.com/")).toEqual([
-    "narrow@x.com|w.example.org",
-  ]);
+  expect(await usernamesFor("https://app.other-site.com/")).toEqual(["narrow@x.com|w.example.org"]);
 
   // Salt correctness: the linked account derives from its OWN domain
   // (w.example.org), NOT the visited site — so the offered password is the
