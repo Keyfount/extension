@@ -64,6 +64,41 @@ test.describe("popup account detail", () => {
       .toBe(true);
   });
 
+  test("pasting a URL offers a host-vs-registrable link choice", async ({
+    context,
+    extensionId,
+  }) => {
+    const page = await context.newPage();
+    await page.goto(`chrome-extension://${extensionId}/popup.html`);
+    await setupWithHistory(page);
+    await recordAccount(page, "example.com", "alice@example.com");
+
+    await page.goto(`chrome-extension://${extensionId}/popup.html`);
+    await page.locator(".account-row").first().click();
+    await expect(page.getByText("Domaines liés")).toBeVisible({ timeout: 15_000 });
+
+    // Pasting a deep URL is ambiguous → the choice surfaces both candidates.
+    await page
+      .getByPlaceholder("app.autre-site.com")
+      .fill("https://login.example.org/oauth2/v2.0/authorize");
+    await page.getByRole("button", { name: "Lier", exact: true }).click();
+    await expect(page.getByText("Quel domaine lier ?")).toBeVisible();
+
+    // Pick the registrable domain (the narrower host is the other option).
+    await page.getByText("example.org", { exact: true }).click();
+
+    await expect
+      .poll(async () =>
+        page.evaluate(async () => {
+          const res = (await chrome.runtime.sendMessage({ kind: "listAccounts" })) as {
+            entries: { linkedDomains?: string[] }[];
+          };
+          return res.entries[0]?.linkedDomains ?? [];
+        }),
+      )
+      .toContain("example.org");
+  });
+
   test("deletes a saved account from the popup UI", async ({ context, extensionId }) => {
     const page = await context.newPage();
     await page.goto(`chrome-extension://${extensionId}/popup.html`);

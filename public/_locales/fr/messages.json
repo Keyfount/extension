@@ -143,6 +143,10 @@
     "message": "Prêt pour $DOMAIN$",
     "placeholders": { "domain": { "content": "$1" } }
   },
+  "badge_new_account": { "message": "Nouveau compte" },
+  "save_scope_title": { "message": "Enregistrer ce compte pour :" },
+  "save_scope_registrable_hint": { "message": "Tout le site" },
+  "save_scope_full_host_hint": { "message": "Ce sous-domaine uniquement" },
   "badge_locked": {
     "message": "Verrouillé — cliquez sur l'icône de l'extension pour déverrouiller."
   },
@@ -234,6 +238,19 @@
   "rotate_cta": { "message": "Renouveler" },
   "rotate_dismiss": { "message": "Plus tard" },
 
+  "detail_linked_section": { "message": "Domaines liés" },
+  "detail_link_current_title": { "message": "Lier le site actuel" },
+  "detail_linked_choose_title": { "message": "Quel domaine lier ?" },
+  "detail_linked_scope_site": { "message": "Tout le site" },
+  "detail_linked_scope_host": { "message": "Ce sous-domaine uniquement" },
+  "detail_linked_hint": {
+    "message": "Proposer aussi ce compte sur d'autres sites. Un domaine enregistrable (example.com) couvre tous les sous-domaines ; un hôte complet (app.example.com) ne couvre que cet hôte. Le mot de passe ne change pas — il dérive toujours du domaine principal de ce compte."
+  },
+  "detail_linked_empty": { "message": "Aucun domaine lié pour l'instant." },
+  "detail_linked_placeholder": { "message": "app.autre-site.com" },
+  "detail_linked_add": { "message": "Lier" },
+  "detail_linked_remove": { "message": "Retirer" },
+  "detail_link_failed": { "message": "Impossible de lier ce domaine." },
   "detail_rotate_section": { "message": "Renouveler le mot de passe" },
   "detail_rotate_hint": {
     "message": "Incrémente le compteur et recalcule un nouveau mot de passe pour ce compte. Utile quand un site impose un changement ou en cas de fuite."

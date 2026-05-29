@@ -547,7 +547,14 @@ async function applyStateAuthoritatively(
   const fallback = fallbackFor(stateAfterDeletes);
   for (const entry of state.accounts) {
     if (tombKeys.has(`${entry.domain}|${entry.username}`)) continue;
-    await recordAccount(ctx.master, entry.domain, entry.username, entry.profile, fallback);
+    await recordAccount(
+      ctx.master,
+      entry.domain,
+      entry.username,
+      entry.profile,
+      fallback,
+      entry.linkedDomains,
+    );
     await recordSyncedAt(entry.domain, entry.username, Date.now(), "pull");
   }
 }
@@ -575,6 +582,7 @@ async function applyOp(op: SyncOp, ctx: ApprovedContext): Promise<void> {
         op.entry.username,
         op.entry.profile,
         fallbackFor(state),
+        op.entry.linkedDomains,
       );
       // Tag the per-account lastSyncedAt so the detail screen shows
       // the freshness.

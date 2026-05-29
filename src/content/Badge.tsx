@@ -7,7 +7,7 @@
  */
 import { render } from "preact";
 import { useCallback, useEffect, useState } from "preact/hooks";
-import { registrableDomain } from "../shared/domain.js";
+import { fullHost, registrableDomain } from "../shared/domain.js";
 import { ProfileEditor } from "../shared/ProfileEditor.js";
 import { Logo } from "../shared/Logo.js";
 import {
@@ -404,6 +404,9 @@ type Status =
   | { kind: "no-domain" }
   | { kind: "no-email"; domain: string }
   | { kind: "ready"; password: string; domain: string }
+  // Saved accounts exist for this site: offer the list (pick to fill) plus
+  // a "new account" entry, rather than auto-deriving for the detected email.
+  | { kind: "choose"; domain: string }
   | { kind: "error"; message: string };
 
 function Badge({
@@ -423,6 +426,15 @@ function Badge({
   const [emailOverride, setEmailOverride] = useState("");
   const [historyEnabled, setHistoryEnabled] = useState(false);
   const [saved, setSaved] = useState<AccountEntry[]>([]);
+  // When the page is a subdomain, a new account is saved against the
+  // registrable domain by default (broad). The user can opt into a
+  // full-host save — which also changes the derivation salt, so it must be
+  // chosen before the password is generated.
+  const [useFullHost, setUseFullHost] = useState(false);
+  // Set when the user explicitly starts a new account on a site that
+  // already has saved accounts — bypasses page-email detection so they can
+  // type a fresh email and get the domain/sub-domain scope chooser.
+  const [creatingNew, setCreatingNew] = useState(false);
 
   useEffect(() => {
     registerOpen(() => setOpen(true));
@@ -456,11 +468,17 @@ function Badge({
 
   useEffect(() => {
     if (!open) return;
-    void refresh();
+    setCreatingNew(false);
+    void refresh({ intent: "open" });
   }, [open]);
 
   const refresh = useCallback(
-    async (override?: { profile?: Profile; email?: string }) => {
+    async (override?: {
+      profile?: Profile;
+      email?: string;
+      useFullHost?: boolean;
+      intent?: "open" | "new" | "pick";
+    }) => {
       setStatus({ kind: "loading" });
       setCopied(false);
       try {
@@ -480,11 +498,16 @@ function Badge({
         }
 
         let savedForDomain: AccountEntry[] = [];
+        // Local copy of the just-fetched flag — the `historyEnabled` state
+        // set below won't be visible until the next render, so the chooser
+        // decision in this same pass must read the fresh value.
+        let historyOn = false;
         try {
           const ext = await send({ kind: "getState" });
+          historyOn = ext.historyEnabled;
           setHistoryEnabled(ext.historyEnabled);
           if (ext.historyEnabled) {
-            const list = await send({ kind: "listAccounts", domain });
+            const list = await send({ kind: "listAccounts", url: window.location.href });
             savedForDomain = list.entries;
             setSaved(list.entries);
           } else {
@@ -494,8 +517,33 @@ function Badge({
           setHistoryEnabled(false);
           setSaved([]);
         }
-        let email = override?.email ?? (emailOverride.trim() || readUsername(password));
-        if (email.length === 0) {
+        const intent = override?.intent;
+        // "new" mode (explicit New-account button, or mid-flow after it) skips
+        // page-email detection so the user types a fresh email.
+        const wantNew = intent === "new" || (intent === undefined && creatingNew);
+        // On a fresh open we ignore any stale typed email so the chooser can
+        // show; otherwise the typed value drives the flow.
+        const overrideEmail = intent === "open" ? "" : emailOverride.trim();
+
+        // When saved accounts exist and the user hasn't picked one or chosen
+        // "new", present the chooser instead of auto-deriving a password.
+        const hasExplicitEmail = (override?.email ?? "").length > 0;
+        if (
+          !wantNew &&
+          !hasExplicitEmail &&
+          intent !== "pick" &&
+          historyOn &&
+          savedForDomain.length > 0 &&
+          overrideEmail.length === 0
+        ) {
+          setStatus({ kind: "choose", domain });
+          return;
+        }
+
+        let email = wantNew
+          ? (override?.email ?? emailOverride.trim())
+          : (override?.email ?? (overrideEmail || readUsername(password)));
+        if (!wantNew && email.length === 0) {
           // Sign-up flows often split email (page 1) and password (page 2).
           // The content-script entry stashes the email the user typed on
           // any previous page of the same domain; if we still have nothing
@@ -521,22 +569,37 @@ function Badge({
         // A saved account always wins over the per-site default — its
         // profile is frozen at creation and tracks rotations done from
         // the popup's detail page. Otherwise fall back to the site's
-        // effective profile so first-time logins still work.
-        const matching = savedForDomain.find((e) => e.username === email);
+        // effective profile so first-time logins still work. In "new" mode
+        // we never match an existing account (so the scope chooser shows).
+        const matching = wantNew ? undefined : savedForDomain.find((e) => e.username === email);
         const matchingProfile = matching?.profile ?? null;
         if (matchingProfile === null && profile === null && override?.profile === undefined) {
           const p = await send({ kind: "getProfile", domain });
           setProfile(p.profile);
         }
 
+        // The derivation salt is the account's *canonical* domain. A matched
+        // account (subdomain/full-host/linked) carries its own salt, so the
+        // linked z.y.com row still yields w.y.com's password. A brand-new
+        // account derives from the registrable domain by default, or from the
+        // full host when the user opted in on a subdomain.
+        const host = fullHost(window.location.href);
+        const canNarrow = host !== null && host !== domain;
+        const wantFullHost = override?.useFullHost ?? useFullHost;
+        const saltDomain = matching
+          ? matching.domain
+          : wantFullHost && canNarrow && host !== null
+            ? host
+            : domain;
+
         const effective = override?.profile ?? matchingProfile ?? profile;
         const response = await send({
           kind: "generate",
-          domain,
+          domain: saltDomain,
           email,
           ...(effective !== null ? { profile: effective } : {}),
         });
-        setStatus({ kind: "ready", password: response.password, domain });
+        setStatus({ kind: "ready", password: response.password, domain: saltDomain });
       } catch (error) {
         setStatus({
           kind: "error",
@@ -544,7 +607,7 @@ function Badge({
         });
       }
     },
-    [password, profile, emailOverride],
+    [password, profile, emailOverride, useFullHost, creatingNew],
   );
 
   const fill = useCallback(() => {
@@ -582,16 +645,26 @@ function Badge({
 
   const pickSaved = useCallback(
     (pickedUsername: string) => {
+      setCreatingNew(false);
       setEmailOverride(pickedUsername);
       // Reflect the choice in the page's username field too — saves the
       // user a manual fill afterwards.
       if (username !== null) {
         writeInput(username, pickedUsername);
       }
-      void refresh({ email: pickedUsername });
+      void refresh({ intent: "pick", email: pickedUsername });
     },
     [refresh, username],
   );
+
+  // "New account" entry from the chooser: clear the detected email and drop
+  // into the generate flow (email input → password with the domain/sub-domain
+  // scope chooser + fill/copy).
+  const startNew = useCallback(() => {
+    setCreatingNew(true);
+    setEmailOverride("");
+    void refresh({ intent: "new", email: "" });
+  }, [refresh]);
 
   const copy = useCallback(async () => {
     if (status.kind !== "ready") return;
@@ -655,6 +728,14 @@ function Badge({
     },
     [refresh],
   );
+
+  // Subdomain save-granularity affordance: only meaningful for a brand-new
+  // account on a page whose host differs from its registrable root.
+  const pageHost = fullHost(window.location.href);
+  const pageRegistrable = registrableDomain(window.location.href);
+  const canNarrow = pageHost !== null && pageRegistrable !== null && pageHost !== pageRegistrable;
+  const currentEmail = emailOverride.trim() || readUsername(password);
+  const isNewAccount = currentEmail.length > 0 && !saved.some((e) => e.username === currentEmail);
 
   return (
     <div class="badge">
@@ -722,6 +803,48 @@ function Badge({
             </div>
           ) : null}
 
+          {status.kind === "choose" ? (
+            <button
+              type="button"
+              class="badge__btn badge__btn--primary badge__new-account"
+              onClick={startNew}
+            >
+              {t("badge_new_account")}
+            </button>
+          ) : null}
+
+          {status.kind === "ready" && historyEnabled && canNarrow && isNewAccount ? (
+            <div class="badge__scope" role="radiogroup" aria-label={t("save_scope_title")}>
+              <span class="badge__scope-title">{t("save_scope_title")}</span>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={!useFullHost}
+                class={`badge__scope-opt${!useFullHost ? " is-selected" : ""}`}
+                onClick={() => {
+                  setUseFullHost(false);
+                  void refresh({ useFullHost: false });
+                }}
+              >
+                <span class="badge__scope-domain">{pageRegistrable}</span>
+                <span class="badge__scope-hint">{t("save_scope_registrable_hint")}</span>
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={useFullHost}
+                class={`badge__scope-opt${useFullHost ? " is-selected" : ""}`}
+                onClick={() => {
+                  setUseFullHost(true);
+                  void refresh({ useFullHost: true });
+                }}
+              >
+                <span class="badge__scope-domain">{pageHost}</span>
+                <span class="badge__scope-hint">{t("save_scope_full_host_hint")}</span>
+              </button>
+            </div>
+          ) : null}
+
           {renderBody({
             status,
             showSettings,
@@ -757,6 +880,12 @@ interface BodyProps {
 
 function renderBody(props: BodyProps) {
   const { status } = props;
+
+  // The chooser renders its picker (saved list) + "new account" button in the
+  // panel itself; nothing else to show here.
+  if (status.kind === "choose") {
+    return null;
+  }
 
   if (status.kind === "ready" && props.showSettings && props.profile !== null) {
     return <ProfileEditor profile={props.profile} onChange={props.onProfileChange} compact />;
@@ -945,6 +1074,7 @@ function statusMessage(status: Status): string {
     case "locked":
     case "no-email":
     case "ready":
+    case "choose":
       return "";
   }
 }

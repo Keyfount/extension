@@ -2,9 +2,11 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { bootstrapTestProfile, installChromeMock } from "./helpers/chrome-mock.js";
 import {
   deleteAccount,
+  linkDomain,
   listAccounts,
   recordAccount,
   renameAccount,
+  unlinkDomain,
   updateAccountProfile,
   wipeAccounts,
   type ProfileFallback,
@@ -136,6 +138,58 @@ describe("renameAccount", () => {
     await recordAccount(MASTER, "a.com", "same", random, fallback);
     const res = await renameAccount(MASTER, "a.com", "same", "same", fallback);
     expect(res.ok).toBe(true);
+  });
+});
+
+describe("linkedDomains", () => {
+  it("records linkedDomains and reads them back", async () => {
+    await recordAccount(MASTER, "w.y.com", "u", random, fallback, ["z.y.com"]);
+    const entry = (await listAccounts(MASTER, undefined, fallback))[0]!;
+    expect(entry.linkedDomains).toEqual(["z.y.com"]);
+  });
+
+  it("omits linkedDomains entirely when none are given", async () => {
+    await recordAccount(MASTER, "a.com", "u", random, fallback);
+    const entry = (await listAccounts(MASTER, undefined, fallback))[0]!;
+    expect(entry.linkedDomains).toBeUndefined();
+  });
+
+  it("preserves linkedDomains when re-recording without passing them", async () => {
+    await recordAccount(MASTER, "w.y.com", "u", random, fallback, ["z.y.com"]);
+    await recordAccount(MASTER, "w.y.com", "u", memorable, fallback);
+    const entry = (await listAccounts(MASTER, undefined, fallback))[0]!;
+    expect(entry.linkedDomains).toEqual(["z.y.com"]);
+    expect(entry.profile).toEqual(memorable);
+  });
+
+  it("linkDomain adds, de-dupes, and lowercases", async () => {
+    await recordAccount(MASTER, "w.y.com", "u", random, fallback);
+    await linkDomain(MASTER, "w.y.com", "u", "Z.Y.com", fallback);
+    await linkDomain(MASTER, "w.y.com", "u", "z.y.com", fallback);
+    const entry = (await listAccounts(MASTER, undefined, fallback))[0]!;
+    expect(entry.linkedDomains).toEqual(["z.y.com"]);
+  });
+
+  it("linkDomain is a no-op for the canonical domain", async () => {
+    await recordAccount(MASTER, "w.y.com", "u", random, fallback);
+    await linkDomain(MASTER, "w.y.com", "u", "w.y.com", fallback);
+    const entry = (await listAccounts(MASTER, undefined, fallback))[0]!;
+    expect(entry.linkedDomains).toBeUndefined();
+  });
+
+  it("unlinkDomain removes one and drops the field when empty", async () => {
+    await recordAccount(MASTER, "w.y.com", "u", random, fallback, ["z.y.com", "q.y.com"]);
+    await unlinkDomain(MASTER, "w.y.com", "u", "z.y.com", fallback);
+    let entry = (await listAccounts(MASTER, undefined, fallback))[0]!;
+    expect(entry.linkedDomains).toEqual(["q.y.com"]);
+    await unlinkDomain(MASTER, "w.y.com", "u", "q.y.com", fallback);
+    entry = (await listAccounts(MASTER, undefined, fallback))[0]!;
+    expect(entry.linkedDomains).toBeUndefined();
+  });
+
+  it("link/unlink return null for a missing entry", async () => {
+    expect(await linkDomain(MASTER, "ghost.com", "u", "x.com", fallback)).toBeNull();
+    expect(await unlinkDomain(MASTER, "ghost.com", "u", "x.com", fallback)).toBeNull();
   });
 });
 

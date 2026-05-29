@@ -24,13 +24,16 @@ import {
 } from "./profiles.js";
 import {
   deleteAccount,
+  linkDomain,
   listAccounts,
   recordAccount,
   renameAccount,
+  unlinkDomain,
   updateAccountProfile,
   wipeAccounts,
   type ProfileFallback,
 } from "./accounts.js";
+import { matchAccounts } from "../shared/domain.js";
 import { clearPendingSave, getPendingSave, setPendingSave } from "./pending.js";
 import { getRecentUsername, setRecentUsername } from "./recent-username.js";
 import { armClipboardClear, cancelClipboardClear } from "./clipboard.js";
@@ -163,9 +166,14 @@ export async function handleRequest(request: Request): Promise<AnyResponse> {
       case "getState":
         return await handleGetState();
       case "listAccounts":
-        return await handleListAccounts(request.domain);
+        return await handleListAccounts(request.domain, request.url);
       case "recordAccount":
-        return await handleRecordAccount(request.domain, request.username, request.profile);
+        return await handleRecordAccount(
+          request.domain,
+          request.username,
+          request.profile,
+          request.linkedDomains,
+        );
       case "updateAccountProfile":
         return await handleUpdateAccountProfile(request.domain, request.username, request.profile);
       case "renameAccount":
@@ -173,6 +181,10 @@ export async function handleRequest(request: Request): Promise<AnyResponse> {
       case "deleteAccount":
         await handleDeleteAccount(request.domain, request.username);
         return { ok: true };
+      case "linkAccountDomain":
+        return await handleLinkAccountDomain(request.domain, request.username, request.linked);
+      case "unlinkAccountDomain":
+        return await handleUnlinkAccountDomain(request.domain, request.username, request.linked);
       case "setHistoryEnabled":
         return await handleSetHistoryEnabled(request.enabled);
       case "setFaviconFallbackEnabled":
@@ -507,10 +519,18 @@ function fallbackFor(state: StoredState): ProfileFallback {
 
 async function handleListAccounts(
   domain: string | undefined,
+  url?: string,
 ): Promise<ListAccountsResponse | ErrorResponse> {
   const master = await readMaster();
   if (master === null) return { ok: false, error: "locked" };
   const state = await loadState();
+  // When a URL is given (content-script call sites), match in the
+  // background and return only the matching rows — the page must never
+  // receive the full cross-domain account list.
+  if (url !== undefined) {
+    const all = await listAccounts(master, undefined, fallbackFor(state));
+    return { ok: true, entries: matchAccounts(url, all) };
+  }
   const entries = await listAccounts(master, domain, fallbackFor(state));
   return { ok: true, entries };
 }
@@ -519,6 +539,7 @@ async function handleRecordAccount(
   domain: string,
   username: string,
   profile: Profile,
+  linkedDomains?: string[],
 ): Promise<RecordAccountResponse | ErrorResponse> {
   const master = await readMaster();
   if (master === null) return { ok: false, error: "locked" };
@@ -527,8 +548,43 @@ async function handleRecordAccount(
   const trimmed = username.trim();
   if (trimmed.length === 0) return { ok: false, error: "username required" };
   if (domain.length === 0) return { ok: false, error: "domain required" };
-  const entry = await recordAccount(master, domain, trimmed, profile, fallbackFor(state));
+  const entry = await recordAccount(
+    master,
+    domain,
+    trimmed,
+    profile,
+    fallbackFor(state),
+    linkedDomains,
+  );
   void syncAccountChange({ kind: "upsert", entry, domain, username: trimmed });
+  return { ok: true, entry };
+}
+
+async function handleLinkAccountDomain(
+  domain: string,
+  username: string,
+  linked: string,
+): Promise<RecordAccountResponse | ErrorResponse> {
+  const master = await readMaster();
+  if (master === null) return { ok: false, error: "locked" };
+  const state = await loadState();
+  const entry = await linkDomain(master, domain, username, linked, fallbackFor(state));
+  if (entry === null) return { ok: false, error: "account not found" };
+  void syncAccountChange({ kind: "upsert", entry, domain, username });
+  return { ok: true, entry };
+}
+
+async function handleUnlinkAccountDomain(
+  domain: string,
+  username: string,
+  linked: string,
+): Promise<RecordAccountResponse | ErrorResponse> {
+  const master = await readMaster();
+  if (master === null) return { ok: false, error: "locked" };
+  const state = await loadState();
+  const entry = await unlinkDomain(master, domain, username, linked, fallbackFor(state));
+  if (entry === null) return { ok: false, error: "account not found" };
+  void syncAccountChange({ kind: "upsert", entry, domain, username });
   return { ok: true, entry };
 }
 

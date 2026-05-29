@@ -84,6 +84,13 @@ export interface AccountEntry {
    * backfilled lazily at read time with the site's effective profile.
    */
   profile: Profile;
+  /**
+   * Extra hosts/domains this account is also offered on. Match-only — NEVER
+   * part of the derivation salt. A registrable entry here is broad (matches
+   * every subdomain); a full-host entry is narrow (exact host only). The
+   * canonical `domain` above stays the sole identity + salt.
+   */
+  linkedDomains?: string[];
   createdAt: number;
   lastUsedAt: number;
 }

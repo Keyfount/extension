@@ -28,6 +28,9 @@ export const livePreview = signal<string | null>(null);
 /** Active tab's registrable domain. `null` if the tab is not a normal web page. */
 export const activeDomain = signal<string | null>(null);
 
+/** Active tab's full host (e.g. `app.example.com`). `null` if not a web page. */
+export const activeHost = signal<string | null>(null);
+
 /** Email read from the page or typed in the popup. */
 export const activeEmail = signal<string>("");
 

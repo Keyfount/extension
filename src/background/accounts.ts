@@ -50,6 +50,7 @@ export async function recordAccount(
   username: string,
   profile: Profile,
   fallback: ProfileFallback,
+  linkedDomains?: string[],
 ): Promise<AccountEntry> {
   const now = Date.now();
   const { entries } = await readAll(master, fallback);
@@ -58,6 +59,12 @@ export async function recordAccount(
   if (existing !== undefined) {
     existing.lastUsedAt = now;
     existing.profile = profile;
+    // Only touch linkedDomains when the caller supplies them, so an
+    // ordinary "bump lastUsedAt" upsert never drops existing links.
+    if (linkedDomains !== undefined) {
+      if (linkedDomains.length > 0) existing.linkedDomains = linkedDomains;
+      else delete existing.linkedDomains;
+    }
     entry = existing;
   } else {
     entry = {
@@ -66,6 +73,7 @@ export async function recordAccount(
       profile,
       createdAt: now,
       lastUsedAt: now,
+      ...(linkedDomains !== undefined && linkedDomains.length > 0 ? { linkedDomains } : {}),
     };
     entries.push(entry);
   }
@@ -92,6 +100,52 @@ export async function updateAccountProfile(
   const target = entries.find((e) => e.domain === domain && e.username === username);
   if (target === undefined) return null;
   target.profile = profile;
+  target.lastUsedAt = Date.now();
+  await writeAll(master, entries);
+  return target;
+}
+
+/**
+ * Add a match-only linked domain to an account (normalised + de-duped).
+ * No-op for the canonical domain. Returns the updated entry, or `null`
+ * when the account is missing.
+ */
+export async function linkDomain(
+  master: string,
+  domain: string,
+  username: string,
+  linked: string,
+  fallback: ProfileFallback,
+): Promise<AccountEntry | null> {
+  const norm = linked.trim().toLowerCase();
+  const { entries } = await readAll(master, fallback);
+  const target = entries.find((e) => e.domain === domain && e.username === username);
+  if (target === undefined) return null;
+  if (norm.length === 0 || norm === domain) return target;
+  target.linkedDomains = [...new Set([...(target.linkedDomains ?? []), norm])];
+  target.lastUsedAt = Date.now();
+  await writeAll(master, entries);
+  return target;
+}
+
+/**
+ * Remove a linked domain; drops the field entirely when the last one is
+ * removed. Returns the updated entry, or `null` when the account is missing.
+ */
+export async function unlinkDomain(
+  master: string,
+  domain: string,
+  username: string,
+  linked: string,
+  fallback: ProfileFallback,
+): Promise<AccountEntry | null> {
+  const norm = linked.trim().toLowerCase();
+  const { entries } = await readAll(master, fallback);
+  const target = entries.find((e) => e.domain === domain && e.username === username);
+  if (target === undefined) return null;
+  const next = (target.linkedDomains ?? []).filter((d) => d !== norm);
+  if (next.length > 0) target.linkedDomains = next;
+  else delete target.linkedDomains;
   target.lastUsedAt = Date.now();
   await writeAll(master, entries);
   return target;
@@ -172,6 +226,7 @@ interface RawEntry {
   domain: string;
   username: string;
   profile?: Profile;
+  linkedDomains?: string[];
   createdAt: number;
   lastUsedAt: number;
 }
@@ -214,6 +269,7 @@ async function readAll(
       domain: e.domain,
       username: e.username,
       profile,
+      ...(e.linkedDomains !== undefined ? { linkedDomains: e.linkedDomains } : {}),
       createdAt: e.createdAt,
       lastUsedAt: e.lastUsedAt,
     };

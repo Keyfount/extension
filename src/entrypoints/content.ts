@@ -131,7 +131,7 @@ export default defineContentScript({
         // account for this site, surface a rotation banner. We only
         // auto-rotate for a single matching entry; with several we
         // pick the most recently used and let the user dismiss.
-        send({ kind: "listAccounts", domain: currentDomain })
+        send({ kind: "listAccounts", url: window.location.href })
           .then((res) => {
             const entries = res.entries;
             if (entries.length === 0) return;

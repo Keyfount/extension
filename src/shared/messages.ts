@@ -25,11 +25,19 @@ export type Request =
   | { kind: "removePin" }
   | { kind: "getState" }
   | { kind: "wipe" }
-  | { kind: "listAccounts"; domain?: string }
-  | { kind: "recordAccount"; domain: string; username: string; profile: Profile }
+  | { kind: "listAccounts"; domain?: string; url?: string }
+  | {
+      kind: "recordAccount";
+      domain: string;
+      username: string;
+      profile: Profile;
+      linkedDomains?: string[];
+    }
   | { kind: "updateAccountProfile"; domain: string; username: string; profile: Profile }
   | { kind: "renameAccount"; domain: string; oldUsername: string; newUsername: string }
   | { kind: "deleteAccount"; domain: string; username: string }
+  | { kind: "linkAccountDomain"; domain: string; username: string; linked: string }
+  | { kind: "unlinkAccountDomain"; domain: string; username: string; linked: string }
   | { kind: "setFaviconFallbackEnabled"; enabled: boolean }
   | { kind: "setHistoryEnabled"; enabled: boolean }
   | { kind: "setPendingSave"; domain: string; username: string; profile?: Profile }
@@ -92,7 +100,9 @@ export type Response<T extends Request> = T extends { kind: "listVaults" }
                                     kind:
                                       | "recordAccount"
                                       | "updateAccountProfile"
-                                      | "renameAccount";
+                                      | "renameAccount"
+                                      | "linkAccountDomain"
+                                      | "unlinkAccountDomain";
                                   }
                                 ? RecordAccountResponse
                                 : T extends { kind: "setHistoryEnabled" }

@@ -234,6 +234,82 @@ describe("router — account history", () => {
     expect(list.entries[0]).toMatchObject({ username: "alice@x.com" });
   });
 
+  it("listAccounts by url applies the subdomain + linked match rule", async () => {
+    await handleRequest({ kind: "setup", master: "correct-horse-battery" });
+    await handleRequest({ kind: "setHistoryEnabled", enabled: true });
+    // Broad registrable account + a narrow full-host account.
+    await handleRequest({
+      kind: "recordAccount",
+      domain: "example.com",
+      username: "broad@x.com",
+      profile: DEFAULT_RANDOM_PROFILE,
+    });
+    await handleRequest({
+      kind: "recordAccount",
+      domain: "w.example.com",
+      username: "narrow@x.com",
+      profile: DEFAULT_RANDOM_PROFILE,
+    });
+
+    // On a subdomain: the broad account is offered; the narrow one is not.
+    const onSub = await handleRequest({
+      kind: "listAccounts",
+      url: "https://app.example.com/login",
+    });
+    if (onSub.ok === false) throw new Error(onSub.error);
+    if (!("entries" in onSub)) throw new Error("unexpected response shape");
+    expect(onSub.entries.map((e) => e.username)).toEqual(["broad@x.com"]);
+
+    // On the registrable root: the narrow full-host account is NOT offered.
+    const onRoot = await handleRequest({ kind: "listAccounts", url: "https://example.com/" });
+    if (onRoot.ok === false) throw new Error(onRoot.error);
+    if (!("entries" in onRoot)) throw new Error("unexpected response shape");
+    expect(onRoot.entries.map((e) => e.username)).toEqual(["broad@x.com"]);
+  });
+
+  it("link/unlink make an account offered on a linked host", async () => {
+    await handleRequest({ kind: "setup", master: "correct-horse-battery" });
+    await handleRequest({ kind: "setHistoryEnabled", enabled: true });
+    await handleRequest({
+      kind: "recordAccount",
+      domain: "w.example.com",
+      username: "u@x.com",
+      profile: DEFAULT_RANDOM_PROFILE,
+    });
+
+    // Not offered on z.example.com yet.
+    let onZ = await handleRequest({ kind: "listAccounts", url: "https://z.example.com/" });
+    if (onZ.ok === false) throw new Error(onZ.error);
+    if (!("entries" in onZ)) throw new Error("unexpected response shape");
+    expect(onZ.entries).toHaveLength(0);
+
+    const linked = await handleRequest({
+      kind: "linkAccountDomain",
+      domain: "w.example.com",
+      username: "u@x.com",
+      linked: "z.example.com",
+    });
+    expect(linked).toMatchObject({ ok: true, entry: { linkedDomains: ["z.example.com"] } });
+
+    onZ = await handleRequest({ kind: "listAccounts", url: "https://z.example.com/" });
+    if (onZ.ok === false) throw new Error(onZ.error);
+    if (!("entries" in onZ)) throw new Error("unexpected response shape");
+    expect(onZ.entries.map((e) => e.domain)).toEqual(["w.example.com"]);
+
+    const unlinked = await handleRequest({
+      kind: "unlinkAccountDomain",
+      domain: "w.example.com",
+      username: "u@x.com",
+      linked: "z.example.com",
+    });
+    expect(unlinked).toMatchObject({ ok: true });
+
+    onZ = await handleRequest({ kind: "listAccounts", url: "https://z.example.com/" });
+    if (onZ.ok === false) throw new Error(onZ.error);
+    if (!("entries" in onZ)) throw new Error("unexpected response shape");
+    expect(onZ.entries).toHaveLength(0);
+  });
+
   it("setHistoryEnabled false wipes the stored entries", async () => {
     await handleRequest({ kind: "setup", master: "correct-horse-battery" });
     await handleRequest({ kind: "setHistoryEnabled", enabled: true });
